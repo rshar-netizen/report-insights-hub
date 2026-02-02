@@ -79,6 +79,32 @@ export function ConversationChat() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-240px)] min-h-[600px] animate-fade-in">
+      {/* Example Questions - Always Visible */}
+      <div className="border-b border-border px-4 py-4 bg-card/30">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-muted-foreground">
+              Would you like to know...
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {exampleQuestions.map((question, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSubmit(question)}
+                disabled={isTyping}
+                className="glass-card text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <span className="group-hover:text-primary transition-colors">
+                  {question}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Chat Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {messages.length === 0 ? (
@@ -89,33 +115,10 @@ export function ConversationChat() {
             <h3 className="text-xl font-semibold text-foreground mb-2">
               Financial Intelligence Assistant
             </h3>
-            <p className="text-muted-foreground max-w-md mb-8">
+            <p className="text-muted-foreground max-w-md">
               Ask questions about regulatory filings, financial metrics, and market data.
               I'll provide insights sourced from federal regulatory databases.
             </p>
-
-            {/* Example Questions */}
-            <div className="w-full max-w-2xl">
-              <div className="flex items-center gap-2 justify-center mb-4">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span className="text-sm font-medium text-muted-foreground">
-                  Would you like to know...
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {exampleQuestions.map((question, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSubmit(question)}
-                    className="glass-card text-left p-4 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-200 group"
-                  >
-                    <span className="group-hover:text-primary transition-colors">
-                      {question}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         ) : (
           <>
