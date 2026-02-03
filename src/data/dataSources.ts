@@ -75,6 +75,19 @@ export interface PeerComparisonMetric {
   category: 'capital' | 'profitability' | 'efficiency' | 'risk' | 'liquidity';
 }
 
+// Regional performance interface
+export interface RegionalPerformance {
+  region: string;
+  regionCode: string;
+  mizuhoMarketShare: number;
+  peerAvgMarketShare: number;
+  mizuhoLoanVolume: string;
+  mizuhoDeposits: string;
+  branchCount: number;
+  yoyGrowth: number;
+  performanceVsPeers: 'above' | 'at' | 'below';
+}
+
 // Mizuho Americas - the focus institution
 export const mizuho: Bank = {
   id: 'mizuho',
@@ -85,8 +98,8 @@ export const mizuho: Bank = {
   headquarters: 'New York, NY'
 };
 
-// G-SIB peers for comparison
-export const peerBanks: Bank[] = [
+// All available peer banks (expanded list)
+export const allAvailablePeers: Bank[] = [
   {
     id: 'jpmorgan',
     name: 'JPMorgan Chase Bank, N.A.',
@@ -118,8 +131,249 @@ export const peerBanks: Bank[] = [
     rssdId: '451965',
     totalAssets: '$1.9T',
     headquarters: 'San Francisco, CA'
+  },
+  {
+    id: 'goldman',
+    name: 'Goldman Sachs Bank USA',
+    shortName: 'Goldman Sachs',
+    rssdId: '2182786',
+    totalAssets: '$538B',
+    headquarters: 'New York, NY'
+  },
+  {
+    id: 'morgan_stanley',
+    name: 'Morgan Stanley Bank, N.A.',
+    shortName: 'Morgan Stanley',
+    rssdId: '1456501',
+    totalAssets: '$421B',
+    headquarters: 'Salt Lake City, UT'
+  },
+  {
+    id: 'usbank',
+    name: 'U.S. Bank National Association',
+    shortName: 'U.S. Bank',
+    rssdId: '504713',
+    totalAssets: '$591B',
+    headquarters: 'Cincinnati, OH'
+  },
+  {
+    id: 'pnc',
+    name: 'PNC Bank, National Association',
+    shortName: 'PNC',
+    rssdId: '817824',
+    totalAssets: '$557B',
+    headquarters: 'Pittsburgh, PA'
+  },
+  {
+    id: 'truist',
+    name: 'Truist Bank',
+    shortName: 'Truist',
+    rssdId: '852320',
+    totalAssets: '$535B',
+    headquarters: 'Charlotte, NC'
+  },
+  {
+    id: 'td',
+    name: 'TD Bank, N.A.',
+    shortName: 'TD Bank',
+    rssdId: '497404',
+    totalAssets: '$402B',
+    headquarters: 'Wilmington, DE'
+  },
+  {
+    id: 'hsbc',
+    name: 'HSBC Bank USA, National Association',
+    shortName: 'HSBC USA',
+    rssdId: '413208',
+    totalAssets: '$166B',
+    headquarters: 'New York, NY'
+  },
+  {
+    id: 'mufg',
+    name: 'MUFG Union Bank, N.A.',
+    shortName: 'MUFG',
+    rssdId: '134687',
+    totalAssets: '$132B',
+    headquarters: 'New York, NY'
   }
 ];
+
+// Default G-SIB peers for comparison
+export const peerBanks: Bank[] = allAvailablePeers.slice(0, 4);
+
+// Regional performance data
+export const regionalPerformance: RegionalPerformance[] = [
+  {
+    region: 'Northeast',
+    regionCode: 'NE',
+    mizuhoMarketShare: 3.2,
+    peerAvgMarketShare: 8.5,
+    mizuhoLoanVolume: '$142B',
+    mizuhoDeposits: '$98B',
+    branchCount: 12,
+    yoyGrowth: 5.8,
+    performanceVsPeers: 'below'
+  },
+  {
+    region: 'Southeast',
+    regionCode: 'SE',
+    mizuhoMarketShare: 1.1,
+    peerAvgMarketShare: 6.2,
+    mizuhoLoanVolume: '$48B',
+    mizuhoDeposits: '$32B',
+    branchCount: 4,
+    yoyGrowth: 12.4,
+    performanceVsPeers: 'above'
+  },
+  {
+    region: 'Midwest',
+    regionCode: 'MW',
+    mizuhoMarketShare: 0.8,
+    peerAvgMarketShare: 5.8,
+    mizuhoLoanVolume: '$28B',
+    mizuhoDeposits: '$18B',
+    branchCount: 2,
+    yoyGrowth: 3.2,
+    performanceVsPeers: 'at'
+  },
+  {
+    region: 'Southwest',
+    regionCode: 'SW',
+    mizuhoMarketShare: 1.4,
+    peerAvgMarketShare: 4.9,
+    mizuhoLoanVolume: '$52B',
+    mizuhoDeposits: '$38B',
+    branchCount: 3,
+    yoyGrowth: 8.7,
+    performanceVsPeers: 'above'
+  },
+  {
+    region: 'West',
+    regionCode: 'W',
+    mizuhoMarketShare: 2.1,
+    peerAvgMarketShare: 7.2,
+    mizuhoLoanVolume: '$86B',
+    mizuhoDeposits: '$62B',
+    branchCount: 6,
+    yoyGrowth: 6.1,
+    performanceVsPeers: 'at'
+  }
+];
+
+// Generate peer-specific regional data
+export const getPeerRegionalData = (peerIds: string[]): Record<string, RegionalPerformance[]> => {
+  const peerData: Record<string, RegionalPerformance[]> = {};
+  
+  const baseMultipliers: Record<string, number> = {
+    jpmorgan: 2.8,
+    bofa: 2.2,
+    citi: 1.6,
+    wells: 1.9,
+    goldman: 0.6,
+    morgan_stanley: 0.5,
+    usbank: 1.1,
+    pnc: 0.9,
+    truist: 0.8,
+    td: 0.7,
+    hsbc: 0.3,
+    mufg: 0.25
+  };
+
+  peerIds.forEach(peerId => {
+    const mult = baseMultipliers[peerId] || 1;
+    peerData[peerId] = regionalPerformance.map(r => ({
+      ...r,
+      mizuhoMarketShare: +(r.mizuhoMarketShare * mult).toFixed(1),
+      mizuhoLoanVolume: `$${Math.round(parseInt(r.mizuhoLoanVolume.replace(/\$|B/g, '')) * mult)}B`,
+      mizuhoDeposits: `$${Math.round(parseInt(r.mizuhoDeposits.replace(/\$|B/g, '')) * mult)}B`,
+      branchCount: Math.round(r.branchCount * mult * 3)
+    }));
+  });
+
+  return peerData;
+};
+
+// Get peer comparison metrics filtered by selected peers
+export const getPeerComparisonByPeers = (selectedPeerIds: string[]): PeerComparisonMetric[] => {
+  const allPeerData: Record<string, Record<string, string>> = {
+    jpmorgan: { tier1: '15.1%', cet1: '13.8%', roa: '1.21%', roe: '15.2%', efficiency: '54.2%', nim: '2.81%', npl: '0.68%', lcr: '112%' },
+    bofa: { tier1: '13.8%', cet1: '12.1%', roa: '0.98%', roe: '11.4%', efficiency: '62.1%', nim: '2.54%', npl: '0.91%', lcr: '118%' },
+    citi: { tier1: '14.5%', cet1: '13.0%', roa: '0.72%', roe: '7.8%', efficiency: '69.8%', nim: '2.48%', npl: '1.12%', lcr: '116%' },
+    wells: { tier1: '12.4%', cet1: '11.2%', roa: '1.05%', roe: '12.1%', efficiency: '67.3%', nim: '3.02%', npl: '0.79%', lcr: '125%' },
+    goldman: { tier1: '16.2%', cet1: '14.8%', roa: '0.88%', roe: '10.5%', efficiency: '66.1%', nim: '1.92%', npl: '0.42%', lcr: '138%' },
+    morgan_stanley: { tier1: '15.8%', cet1: '14.2%', roa: '0.95%', roe: '11.2%', efficiency: '71.2%', nim: '1.85%', npl: '0.38%', lcr: '145%' },
+    usbank: { tier1: '11.2%', cet1: '9.8%', roa: '1.12%', roe: '13.8%', efficiency: '59.2%', nim: '2.92%', npl: '0.82%', lcr: '108%' },
+    pnc: { tier1: '11.8%', cet1: '10.2%', roa: '1.08%', roe: '12.9%', efficiency: '60.5%', nim: '2.78%', npl: '0.76%', lcr: '112%' },
+    truist: { tier1: '10.9%', cet1: '9.5%', roa: '0.92%', roe: '10.8%', efficiency: '62.8%', nim: '2.98%', npl: '0.88%', lcr: '109%' },
+    td: { tier1: '12.8%', cet1: '11.5%', roa: '0.85%', roe: '9.8%', efficiency: '64.2%', nim: '2.62%', npl: '0.65%', lcr: '122%' },
+    hsbc: { tier1: '14.2%', cet1: '12.8%', roa: '0.78%', roe: '8.5%', efficiency: '68.5%', nim: '2.18%', npl: '0.95%', lcr: '132%' },
+    mufg: { tier1: '13.5%', cet1: '12.2%', roa: '0.82%', roe: '9.2%', efficiency: '65.8%', nim: '2.35%', npl: '0.58%', lcr: '128%' }
+  };
+
+  const metricKeys = ['tier1', 'cet1', 'roa', 'roe', 'efficiency', 'nim', 'npl', 'lcr'];
+  const metricLabels: Record<string, string> = {
+    tier1: 'Tier 1 Capital Ratio',
+    cet1: 'CET1 Ratio',
+    roa: 'Return on Assets',
+    roe: 'Return on Equity',
+    efficiency: 'Efficiency Ratio',
+    nim: 'Net Interest Margin',
+    npl: 'NPL Ratio',
+    lcr: 'Liquidity Coverage Ratio'
+  };
+  const metricCategories: Record<string, 'capital' | 'profitability' | 'efficiency' | 'risk' | 'liquidity'> = {
+    tier1: 'capital',
+    cet1: 'capital',
+    roa: 'profitability',
+    roe: 'profitability',
+    efficiency: 'efficiency',
+    nim: 'profitability',
+    npl: 'risk',
+    lcr: 'liquidity'
+  };
+
+  const mizuhoValues: Record<string, string> = {
+    tier1: '14.8%', cet1: '13.2%', roa: '0.92%', roe: '9.8%',
+    efficiency: '64.2%', nim: '2.42%', npl: '0.72%', lcr: '142%'
+  };
+
+  return metricKeys.map(key => {
+    const peerValues = selectedPeerIds.map(peerId => {
+      const bank = allAvailablePeers.find(b => b.id === peerId);
+      return {
+        bankName: bank?.shortName || peerId,
+        value: allPeerData[peerId]?.[key] || 'N/A'
+      };
+    });
+
+    const numericValues = peerValues
+      .map(p => parseFloat(p.value.replace('%', '')))
+      .filter(v => !isNaN(v));
+    const median = numericValues.length > 0 
+      ? numericValues.sort((a, b) => a - b)[Math.floor(numericValues.length / 2)]
+      : 0;
+    
+    const mizuhoNum = parseFloat(mizuhoValues[key].replace('%', ''));
+    const percentile = numericValues.length > 0
+      ? Math.round((numericValues.filter(v => v < mizuhoNum).length / numericValues.length) * 100)
+      : 50;
+
+    return {
+      id: `${key}-peer`,
+      label: metricLabels[key],
+      mizuhoValue: mizuhoValues[key],
+      peerValues,
+      peerMedian: `${median.toFixed(2)}%`,
+      peerPercentile: percentile,
+      source: 'FFIEC CDR',
+      reportType: 'UBPR Peer Group',
+      interpretation: percentile >= 50 
+        ? `Above median among selected peers`
+        : `Below median among selected peers`,
+      category: metricCategories[key]
+    };
+  });
+};
 
 export const dataSources: DataSource[] = [
   {

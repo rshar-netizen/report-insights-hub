@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -5,9 +6,21 @@ import {
   Building2,
   BarChart3
 } from 'lucide-react';
-import { peerComparisonMetrics, peerBanks, mizuho } from '@/data/dataSources';
+import { getPeerComparisonByPeers, mizuho, allAvailablePeers } from '@/data/dataSources';
+import { PeerSelector } from './PeerSelector';
+import { RegionalPerformanceMap } from './RegionalPerformanceMap';
 
 export function PeerBenchmarking() {
+  // Default to first 4 peers (G-SIBs)
+  const [selectedPeerIds, setSelectedPeerIds] = useState<string[]>(
+    allAvailablePeers.slice(0, 4).map(p => p.id)
+  );
+
+  // Get peer comparison metrics based on selected peers
+  const peerComparisonMetrics = useMemo(() => {
+    return getPeerComparisonByPeers(selectedPeerIds);
+  }, [selectedPeerIds]);
+
   const getPercentileColor = (percentile: number) => {
     if (percentile >= 70) return 'text-success';
     if (percentile >= 40) return 'text-primary';
@@ -34,34 +47,40 @@ export function PeerBenchmarking() {
     return peerComparisonMetrics.filter(m => m.category === category);
   };
 
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const aboveMedian = peerComparisonMetrics.filter(m => m.peerPercentile >= 50).length;
+    const belowMedian = peerComparisonMetrics.filter(m => m.peerPercentile < 50).length;
+    const topQuartile = peerComparisonMetrics.filter(m => m.peerPercentile >= 75).length;
+    const atMedian = peerComparisonMetrics.filter(m => m.peerPercentile >= 45 && m.peerPercentile <= 55).length;
+    return { aboveMedian, belowMedian, topQuartile, atMedian };
+  }, [peerComparisonMetrics]);
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Peer Intelligence Benchmarking</h2>
         <p className="text-muted-foreground">
-          Comparative analysis of Mizuho Americas vs G-SIB peer group
+          Comparative analysis of Mizuho Americas vs selected peer group
         </p>
       </div>
 
-      {/* Peer Banks Legend */}
-      <div className="glass-card rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">Peer Group</h3>
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="w-2 h-2 rounded-full bg-primary" />
-            <span className="text-sm font-medium text-primary">{mizuho.shortName}</span>
-            <span className="text-xs text-muted-foreground">{mizuho.totalAssets}</span>
-          </div>
-          {peerBanks.map((bank) => (
-            <div key={bank.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary">
-              <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{bank.shortName}</span>
-              <span className="text-xs text-muted-foreground/70">{bank.totalAssets}</span>
-            </div>
-          ))}
-        </div>
+      {/* Mizuho Badge */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 w-fit">
+        <div className="w-2 h-2 rounded-full bg-primary" />
+        <span className="text-sm font-medium text-primary">{mizuho.shortName}</span>
+        <span className="text-xs text-muted-foreground">{mizuho.totalAssets}</span>
       </div>
+
+      {/* Peer Selector */}
+      <PeerSelector 
+        selectedPeerIds={selectedPeerIds}
+        onPeersChange={setSelectedPeerIds}
+      />
+
+      {/* Regional Performance Map */}
+      <RegionalPerformanceMap selectedPeers={selectedPeerIds} />
 
       {/* Comparison by Category */}
       {categories.map((category) => {
@@ -103,13 +122,18 @@ export function PeerBenchmarking() {
                   {/* Peer Comparison Table */}
                   <div className="mb-4">
                     <div className="grid grid-cols-4 gap-2 text-xs">
-                      {metric.peerValues.map((peer) => (
+                      {metric.peerValues.slice(0, 4).map((peer) => (
                         <div key={peer.bankName} className="text-center">
                           <p className="text-muted-foreground truncate">{peer.bankName.split(' ')[0]}</p>
                           <p className="font-semibold text-foreground">{peer.value}</p>
                         </div>
                       ))}
                     </div>
+                    {metric.peerValues.length > 4 && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        +{metric.peerValues.length - 4} more peers
+                      </p>
+                    )}
                   </div>
 
                   {/* Percentile Bar */}
@@ -149,19 +173,19 @@ export function PeerBenchmarking() {
         <h3 className="text-lg font-semibold text-foreground mb-4">Performance Summary</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center p-4 rounded-lg bg-success/10 border border-success/20">
-            <p className="text-3xl font-bold text-success">3</p>
+            <p className="text-3xl font-bold text-success">{summaryStats.aboveMedian}</p>
             <p className="text-sm text-muted-foreground">Above Median</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <p className="text-3xl font-bold text-primary">1</p>
+            <p className="text-3xl font-bold text-primary">{summaryStats.atMedian}</p>
             <p className="text-sm text-muted-foreground">At Median</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-warning/10 border border-warning/20">
-            <p className="text-3xl font-bold text-warning">3</p>
+            <p className="text-3xl font-bold text-warning">{summaryStats.belowMedian}</p>
             <p className="text-sm text-muted-foreground">Below Median</p>
           </div>
           <div className="text-center p-4 rounded-lg bg-secondary border border-border">
-            <p className="text-3xl font-bold text-foreground">1</p>
+            <p className="text-3xl font-bold text-foreground">{summaryStats.topQuartile}</p>
             <p className="text-sm text-muted-foreground">Top Quartile</p>
           </div>
         </div>
