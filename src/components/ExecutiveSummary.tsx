@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { executiveInsights, mizuhoMetrics } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
+import { MetricTrendTracker } from './MetricTrendTracker';
 
 export function ExecutiveSummary() {
   const getCategoryIcon = (category: string) => {
@@ -195,6 +196,9 @@ export function ExecutiveSummary() {
           </div>
         )}
       </div>
+
+      {/* Performance Tracking - Q-o-Q and Y-o-Y */}
+      <MetricTrendTracker />
 
       {/* Institution Metrics */}
       <div>
