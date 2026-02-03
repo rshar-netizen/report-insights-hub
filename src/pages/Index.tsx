@@ -1,11 +1,15 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { SummaryDashboard } from '@/components/SummaryDashboard';
-import { ConversationChat } from '@/components/ConversationChat';
-import { LayoutDashboard, MessageSquare, Building2, Shield } from 'lucide-react';
+import { ExecutiveSummary } from '@/components/ExecutiveSummary';
+import { PeerBenchmarking } from '@/components/PeerBenchmarking';
+import { ChatOverlay } from '@/components/ChatOverlay';
+import { Building2, Shield, BarChart3, Users, MessageSquare } from 'lucide-react';
+import { mizuho } from '@/data/dataSources';
+import { Button } from '@/components/ui/button';
 
 const Index = () => {
-  const [activeTab, setActiveTab] = useState('summary');
+  const [activeTab, setActiveTab] = useState('executive');
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -22,22 +26,25 @@ const Index = () => {
                   RegInsight<span className="text-primary">AI</span>
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  Financial Intelligence Platform
+                  {mizuho.name}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary">
+                <span className="text-xs text-muted-foreground">
+                  RSSD: {mizuho.rssdId}
+                </span>
+                <span className="text-xs text-muted-foreground">•</span>
+                <span className="text-xs text-muted-foreground">
+                  Assets: {mizuho.totalAssets}
+                </span>
+              </div>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
                 <span className="text-xs font-medium text-success">
-                  All Systems Operational
-                </span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary">
-                <Shield className="w-4 h-4 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  Enterprise Demo
+                  Live Data
                 </span>
               </div>
             </div>
@@ -50,36 +57,52 @@ const Index = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="bg-secondary/50 border border-border p-1 mb-6">
             <TabsTrigger
-              value="summary"
+              value="executive"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-6"
             >
-              <LayoutDashboard className="w-4 h-4" />
-              Summary Dashboard
+              <BarChart3 className="w-4 h-4" />
+              Mizuho Overview
             </TabsTrigger>
             <TabsTrigger
-              value="conversation"
+              value="peer"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-6"
             >
-              <MessageSquare className="w-4 h-4" />
-              AI Conversation
+              <Users className="w-4 h-4" />
+              Peer Benchmarking
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="summary" className="mt-0">
-            <SummaryDashboard />
+          <TabsContent value="executive" className="mt-0">
+            <ExecutiveSummary />
           </TabsContent>
 
-          <TabsContent value="conversation" className="mt-0">
-            <ConversationChat />
+          <TabsContent value="peer" className="mt-0">
+            <PeerBenchmarking />
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Floating Chat Button */}
+      <Button
+        onClick={() => setIsChatOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground z-40"
+        size="icon"
+      >
+        <MessageSquare className="w-6 h-6" />
+      </Button>
+
+      {/* Chat Overlay */}
+      <ChatOverlay 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)}
+        activeContext={activeTab === 'executive' ? 'executive' : 'peer'}
+      />
 
       {/* Footer */}
       <footer className="border-t border-border mt-auto py-4">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>© 2024 RegInsightAI. Enterprise Financial Intelligence.</span>
+            <span>© 2024 RegInsightAI. Financial Intelligence Platform.</span>
             <div className="flex items-center gap-4">
               <span>Data sources: FFIEC • FRED • CFPB • NIC • SEC</span>
             </div>
