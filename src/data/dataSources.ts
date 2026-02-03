@@ -10,6 +10,30 @@ export interface DataSource {
   reportTypes: string[];
 }
 
+// Historical data point for trend tracking
+export interface MetricDataPoint {
+  period: string;
+  value: number;
+  reportType: string;
+}
+
+// Metric with historical data for Y-o-Y and Q-o-Q tracking
+export interface MetricHistoricalData {
+  id: string;
+  label: string;
+  description: string;
+  unit: string;
+  quarterlyData: MetricDataPoint[];
+  yearlyData: MetricDataPoint[];
+  peerMedian?: number;
+  sources: {
+    name: string;
+    reportType: string;
+    url: string;
+  }[];
+  lastUpdated: string;
+}
+
 export interface Bank {
   id: string;
   name: string;
@@ -973,3 +997,217 @@ Could you provide more specific details about what aspect you'd like to explore?
     ]
   }
 };
+
+// Historical metric data for trend tracking (Q-o-Q and Y-o-Y)
+export const metricHistoricalData: MetricHistoricalData[] = [
+  {
+    id: 'nim',
+    label: 'Net Interest Margin',
+    description: 'Difference between interest income generated and interest expenses relative to earning assets. Key indicator of lending profitability.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 2.78, reportType: 'Call Report Schedule RI' },
+      { period: 'Q2 2023', value: 2.68, reportType: 'Call Report Schedule RI' },
+      { period: 'Q3 2023', value: 2.60, reportType: 'Call Report Schedule RI' },
+      { period: 'Q4 2023', value: 2.42, reportType: 'Call Report Schedule RI' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 2.45, reportType: 'Call Report Annual' },
+      { period: '2021', value: 2.52, reportType: 'Call Report Annual' },
+      { period: '2022', value: 2.85, reportType: 'Call Report Annual' },
+      { period: '2023', value: 2.62, reportType: 'Call Report Annual' }
+    ],
+    peerMedian: 2.65,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'Call Report Schedule RI', url: 'https://cdr.ffiec.gov/' },
+      { name: 'FRED', reportType: 'NEIM Index', url: 'https://fred.stlouisfed.org/series/NEIM' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'tier1',
+    label: 'Tier 1 Capital Ratio',
+    description: 'Core capital as a percentage of risk-weighted assets. Measures the bank\'s ability to absorb losses while remaining solvent.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 14.2, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q2 2023', value: 14.4, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q3 2023', value: 14.5, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q4 2023', value: 14.8, reportType: 'FRY-9C Schedule HC-R' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 13.2, reportType: 'FRY-9C Annual' },
+      { period: '2021', value: 13.8, reportType: 'FRY-9C Annual' },
+      { period: '2022', value: 14.1, reportType: 'FRY-9C Annual' },
+      { period: '2023', value: 14.8, reportType: 'FRY-9C Annual' }
+    ],
+    peerMedian: 14.15,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'FRY-9C Schedule HC-R', url: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx' },
+      { name: 'NIC', reportType: 'Institution Profile', url: 'https://www.ffiec.gov/NPW' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'cet1',
+    label: 'CET1 Ratio',
+    description: 'Common Equity Tier 1 capital as a percentage of risk-weighted assets. Highest quality regulatory capital.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 12.6, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q2 2023', value: 12.8, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q3 2023', value: 13.0, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q4 2023', value: 13.2, reportType: 'FRY-9C Schedule HC-R' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 11.8, reportType: 'FRY-9C Annual' },
+      { period: '2021', value: 12.2, reportType: 'FRY-9C Annual' },
+      { period: '2022', value: 12.5, reportType: 'FRY-9C Annual' },
+      { period: '2023', value: 13.2, reportType: 'FRY-9C Annual' }
+    ],
+    peerMedian: 12.55,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'FRY-9C Schedule HC-R', url: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'roa',
+    label: 'Return on Assets',
+    description: 'Net income relative to total assets. Indicates how effectively the bank uses its assets to generate profit.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 1.05, reportType: 'UBPR Page 1' },
+      { period: 'Q2 2023', value: 1.01, reportType: 'UBPR Page 1' },
+      { period: 'Q3 2023', value: 0.97, reportType: 'UBPR Page 1' },
+      { period: 'Q4 2023', value: 0.92, reportType: 'UBPR Page 1' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 0.78, reportType: 'UBPR Annual' },
+      { period: '2021', value: 0.95, reportType: 'UBPR Annual' },
+      { period: '2022', value: 1.08, reportType: 'UBPR Annual' },
+      { period: '2023', value: 0.99, reportType: 'UBPR Annual' }
+    ],
+    peerMedian: 1.02,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'UBPR Page 1', url: 'https://cdr.ffiec.gov/UBPR.aspx' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'roe',
+    label: 'Return on Equity',
+    description: 'Net income relative to shareholders\' equity. Measures profitability from shareholder perspective.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 11.2, reportType: 'UBPR Page 1' },
+      { period: 'Q2 2023', value: 10.8, reportType: 'UBPR Page 1' },
+      { period: 'Q3 2023', value: 10.2, reportType: 'UBPR Page 1' },
+      { period: 'Q4 2023', value: 9.8, reportType: 'UBPR Page 1' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 8.2, reportType: 'UBPR Annual' },
+      { period: '2021', value: 10.5, reportType: 'UBPR Annual' },
+      { period: '2022', value: 11.8, reportType: 'UBPR Annual' },
+      { period: '2023', value: 10.5, reportType: 'UBPR Annual' }
+    ],
+    peerMedian: 11.75,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'UBPR Page 1', url: 'https://cdr.ffiec.gov/UBPR.aspx' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'efficiency',
+    label: 'Efficiency Ratio',
+    description: 'Non-interest expenses as a percentage of revenue. Lower values indicate better operational efficiency.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 61.5, reportType: 'Call Report Schedule RI' },
+      { period: 'Q2 2023', value: 62.1, reportType: 'Call Report Schedule RI' },
+      { period: 'Q3 2023', value: 63.0, reportType: 'Call Report Schedule RI' },
+      { period: 'Q4 2023', value: 64.2, reportType: 'Call Report Schedule RI' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 68.5, reportType: 'Call Report Annual' },
+      { period: '2021', value: 65.2, reportType: 'Call Report Annual' },
+      { period: '2022', value: 62.8, reportType: 'Call Report Annual' },
+      { period: '2023', value: 62.7, reportType: 'Call Report Annual' }
+    ],
+    peerMedian: 63.15,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'Call Report Schedule RI', url: 'https://cdr.ffiec.gov/' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'npl',
+    label: 'NPL Ratio',
+    description: 'Non-performing loans as a percentage of total loans. Key indicator of credit quality and asset health.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 0.58, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q2 2023', value: 0.62, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q3 2023', value: 0.64, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q4 2023', value: 0.72, reportType: 'FRY-9C Schedule HC-N' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 0.95, reportType: 'FRY-9C Annual' },
+      { period: '2021', value: 0.72, reportType: 'FRY-9C Annual' },
+      { period: '2022', value: 0.55, reportType: 'FRY-9C Annual' },
+      { period: '2023', value: 0.64, reportType: 'FRY-9C Annual' }
+    ],
+    peerMedian: 0.85,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'FRY-9C Schedule HC-N', url: 'https://cdr.ffiec.gov/' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'lcr',
+    label: 'Liquidity Coverage Ratio',
+    description: 'High-quality liquid assets as a percentage of 30-day net cash outflows. Regulatory minimum is 100%.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 128, reportType: 'FR 2052a' },
+      { period: 'Q2 2023', value: 132, reportType: 'FR 2052a' },
+      { period: 'Q3 2023', value: 137, reportType: 'FR 2052a' },
+      { period: 'Q4 2023', value: 142, reportType: 'FR 2052a' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 118, reportType: 'FR 2052a Annual' },
+      { period: '2021', value: 125, reportType: 'FR 2052a Annual' },
+      { period: '2022', value: 130, reportType: 'FR 2052a Annual' },
+      { period: '2023', value: 135, reportType: 'FR 2052a Annual' }
+    ],
+    peerMedian: 117,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'FR 2052a', url: 'https://cdr.ffiec.gov/' },
+      { name: 'Federal Reserve', reportType: 'Liquidity Reports', url: 'https://www.federalreserve.gov/supervisionreg/srletters/sr1006.htm' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  },
+  {
+    id: 'texas',
+    label: 'Texas Ratio',
+    description: 'Non-performing assets divided by tangible equity plus loan loss reserves. Measures bank health; below 50% is considered safe.',
+    unit: '%',
+    quarterlyData: [
+      { period: 'Q1 2023', value: 7.8, reportType: 'UBPR' },
+      { period: 'Q2 2023', value: 8.0, reportType: 'UBPR' },
+      { period: 'Q3 2023', value: 8.2, reportType: 'UBPR' },
+      { period: 'Q4 2023', value: 8.4, reportType: 'UBPR' }
+    ],
+    yearlyData: [
+      { period: '2020', value: 12.5, reportType: 'UBPR Annual' },
+      { period: '2021', value: 9.8, reportType: 'UBPR Annual' },
+      { period: '2022', value: 7.5, reportType: 'UBPR Annual' },
+      { period: '2023', value: 8.1, reportType: 'UBPR Annual' }
+    ],
+    peerMedian: 10.2,
+    sources: [
+      { name: 'FFIEC CDR', reportType: 'UBPR', url: 'https://cdr.ffiec.gov/UBPR.aspx' }
+    ],
+    lastUpdated: 'January 28, 2024'
+  }
+];
