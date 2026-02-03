@@ -84,24 +84,23 @@ export function RegionalPerformanceMap({ selectedPeers }: RegionalPerformanceMap
 
       {/* Simplified US Map */}
       <div className="glass-card rounded-lg p-6">
-        <div className="relative w-full h-[300px] bg-secondary/20 rounded-lg overflow-hidden">
+        <div className="relative w-full h-[300px] bg-secondary/30 rounded-lg overflow-hidden border border-border">
           {/* US Map Background - Simplified SVG representation */}
           <svg
-            viewBox="0 0 960 600"
-            className="absolute inset-0 w-full h-full opacity-20"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
+            viewBox="0 0 100 60"
+            className="absolute inset-0 w-full h-full"
+            preserveAspectRatio="xMidYMid meet"
           >
             {/* Simplified US outline */}
             <path
-              d="M150,200 L250,180 L350,160 L450,150 L550,140 L650,145 L750,160 L820,180 L850,220 L860,280 L855,340 L840,400 L800,450 L750,480 L650,490 L550,495 L450,490 L350,480 L280,450 L220,400 L180,340 L160,280 L150,220 Z"
-              className="fill-muted/10 stroke-muted-foreground/30"
+              d="M10,25 C15,22 25,18 35,16 C45,14 55,13 65,14 C75,15 82,18 88,22 C92,26 94,32 93,38 C92,44 88,50 82,54 C75,58 65,59 55,59 C45,59 35,57 27,53 C20,49 14,44 11,38 C8,32 8,28 10,25 Z"
+              className="fill-muted/30 stroke-muted-foreground/40"
+              strokeWidth="0.5"
             />
             {/* Region dividers */}
-            <line x1="550" y1="140" x2="550" y2="495" className="stroke-muted-foreground/20" />
-            <line x1="350" y1="160" x2="350" y2="480" className="stroke-muted-foreground/20" />
-            <line x1="350" y1="350" x2="860" y2="350" className="stroke-muted-foreground/20" />
+            <line x1="55" y1="14" x2="55" y2="59" className="stroke-muted-foreground/30" strokeWidth="0.3" strokeDasharray="2,1" />
+            <line x1="35" y1="16" x2="35" y2="57" className="stroke-muted-foreground/30" strokeWidth="0.3" strokeDasharray="2,1" />
+            <line x1="35" y1="38" x2="93" y2="38" className="stroke-muted-foreground/30" strokeWidth="0.3" strokeDasharray="2,1" />
           </svg>
 
           {/* Region Markers */}
