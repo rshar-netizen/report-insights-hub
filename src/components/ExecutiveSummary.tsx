@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -5,13 +6,18 @@ import {
   CheckCircle2,
   Lightbulb,
   ShieldAlert,
-  ExternalLink
+  ExternalLink,
+  Wifi,
+  Database
 } from 'lucide-react';
 import { executiveInsights, mizuhoMetrics } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 export function ExecutiveSummary() {
+  const [useRealTimeData, setUseRealTimeData] = useState(false);
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'strength':
@@ -209,10 +215,25 @@ export function ExecutiveSummary() {
               Key performance indicators from regulatory filings
             </p>
           </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Database className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Demo</span>
+            </div>
+            <Switch
+              checked={useRealTimeData}
+              onCheckedChange={setUseRealTimeData}
+              aria-label="Toggle real-time data"
+            />
+            <div className="flex items-center gap-2">
+              <Wifi className="w-4 h-4 text-success" />
+              <span className="text-sm text-success font-medium">Live</span>
+            </div>
+          </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {mizuhoMetrics.map((metric) => (
-            <BankMetricCard key={metric.id} metric={metric} />
+            <BankMetricCard key={metric.id} metric={metric} isRealTime={useRealTimeData} />
           ))}
         </div>
       </div>
