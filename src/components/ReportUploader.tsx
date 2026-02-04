@@ -6,14 +6,12 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
   Loader2,
   FileSpreadsheet,
   File,
   Sparkles
 } from 'lucide-react';
+import { ReportsTable } from './ReportsTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
