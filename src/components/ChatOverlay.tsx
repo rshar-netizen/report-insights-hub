@@ -20,7 +20,7 @@ import {
 interface ChatOverlayProps {
   isOpen: boolean;
   onClose: () => void;
-  activeContext: 'executive' | 'peer';
+  activeContext: 'executive' | 'peer' | 'ingestion';
 }
 
 export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps) {
@@ -31,7 +31,9 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
 
   const contextQuestions = activeContext === 'executive' 
     ? executiveSummaryQuestions 
-    : peerBenchmarkingQuestions;
+    : activeContext === 'peer'
+    ? peerBenchmarkingQuestions
+    : executiveSummaryQuestions;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -121,7 +123,7 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
                   RegInsight Assistant
                 </SheetTitle>
                 <p className="text-xs text-muted-foreground">
-                  {activeContext === 'executive' ? 'Executive Summary Context' : 'Peer Benchmarking Context'}
+                  {activeContext === 'executive' ? 'Executive Summary Context' : activeContext === 'peer' ? 'Peer Benchmarking Context' : 'Data Ingestion Context'}
                 </p>
               </div>
             </div>

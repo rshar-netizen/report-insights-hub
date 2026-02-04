@@ -14,7 +14,182 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      api_connections: {
+        Row: {
+          auth_type: string
+          base_url: string
+          created_at: string
+          credentials_encrypted: string | null
+          headers: Json | null
+          id: string
+          last_sync_at: string | null
+          name: string
+          portal: string
+          query_params: Json | null
+          rssd_id: string | null
+          schedule: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_type?: string
+          base_url: string
+          created_at?: string
+          credentials_encrypted?: string | null
+          headers?: Json | null
+          id?: string
+          last_sync_at?: string | null
+          name: string
+          portal: string
+          query_params?: Json | null
+          rssd_id?: string | null
+          schedule?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_type?: string
+          base_url?: string
+          created_at?: string
+          credentials_encrypted?: string | null
+          headers?: Json | null
+          id?: string
+          last_sync_at?: string | null
+          name?: string
+          portal?: string
+          query_params?: Json | null
+          rssd_id?: string | null
+          schedule?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      data_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          report_ids: string[] | null
+          role: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          report_ids?: string[] | null
+          role: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          report_ids?: string[] | null
+          role?: string
+        }
+        Relationships: []
+      }
+      ingested_reports: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          file_path: string | null
+          id: string
+          institution_name: string | null
+          name: string
+          raw_content: string | null
+          report_type: string
+          reporting_period: string | null
+          rssd_id: string | null
+          source: string
+          source_url: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          file_path?: string | null
+          id?: string
+          institution_name?: string | null
+          name: string
+          raw_content?: string | null
+          report_type: string
+          reporting_period?: string | null
+          rssd_id?: string | null
+          source: string
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          file_path?: string | null
+          id?: string
+          institution_name?: string | null
+          name?: string
+          raw_content?: string | null
+          report_type?: string
+          reporting_period?: string | null
+          rssd_id?: string | null
+          source?: string
+          source_url?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      report_insights: {
+        Row: {
+          category: string | null
+          confidence_score: number | null
+          content: string
+          created_at: string
+          id: string
+          insight_type: string
+          metrics: Json | null
+          report_id: string | null
+          sources: Json | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          confidence_score?: number | null
+          content: string
+          created_at?: string
+          id?: string
+          insight_type: string
+          metrics?: Json | null
+          report_id?: string | null
+          sources?: Json | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          confidence_score?: number | null
+          content?: string
+          created_at?: string
+          id?: string
+          insight_type?: string
+          metrics?: Json | null
+          report_id?: string | null
+          sources?: Json | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_insights_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "ingested_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
