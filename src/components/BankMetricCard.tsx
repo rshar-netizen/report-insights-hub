@@ -1,11 +1,13 @@
-import { ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, XCircle, ExternalLink } from 'lucide-react';
+import { ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Wifi } from 'lucide-react';
 import { BankMetric } from '@/data/dataSources';
+import { Badge } from '@/components/ui/badge';
 
 interface BankMetricCardProps {
   metric: BankMetric;
+  isRealTime?: boolean;
 }
 
-export function BankMetricCard({ metric }: BankMetricCardProps) {
+export function BankMetricCard({ metric, isRealTime = false }: BankMetricCardProps) {
   const getStatusIcon = () => {
     if (!metric.threshold) return null;
     
@@ -45,6 +47,12 @@ export function BankMetricCard({ metric }: BankMetricCardProps) {
           </span>
           {getStatusIcon()}
         </div>
+        {isRealTime && (
+          <Badge variant="success" className="flex items-center gap-1 text-[10px] px-1.5 py-0.5">
+            <Wifi className="w-2.5 h-2.5" />
+            Live
+          </Badge>
+        )}
       </div>
 
       <div className="mb-3">
