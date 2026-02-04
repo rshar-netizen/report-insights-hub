@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExecutiveSummary } from '@/components/ExecutiveSummary';
 import { PeerBenchmarking } from '@/components/PeerBenchmarking';
+import { DataIngestion } from '@/components/DataIngestion';
 import { ChatOverlay } from '@/components/ChatOverlay';
-import { Building2, Shield, BarChart3, Users, MessageSquare } from 'lucide-react';
+import { Building2, Shield, BarChart3, Users, MessageSquare, Upload } from 'lucide-react';
 import { mizuho } from '@/data/dataSources';
 import { Button } from '@/components/ui/button';
 
@@ -58,17 +59,24 @@ const Index = () => {
           <TabsList className="bg-secondary/50 border border-border p-1 mb-6">
             <TabsTrigger
               value="executive"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-6"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-4"
             >
               <BarChart3 className="w-4 h-4" />
               Mizuho Overview
             </TabsTrigger>
             <TabsTrigger
               value="peer"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-6"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-4"
             >
               <Users className="w-4 h-4" />
               Peer Benchmarking
+            </TabsTrigger>
+            <TabsTrigger
+              value="ingestion"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 px-4"
+            >
+              <Upload className="w-4 h-4" />
+              Data Ingestion
             </TabsTrigger>
           </TabsList>
 
@@ -78,6 +86,10 @@ const Index = () => {
 
           <TabsContent value="peer" className="mt-0">
             <PeerBenchmarking />
+          </TabsContent>
+
+          <TabsContent value="ingestion" className="mt-0">
+            <DataIngestion />
           </TabsContent>
         </Tabs>
       </main>
@@ -95,7 +107,7 @@ const Index = () => {
       <ChatOverlay 
         isOpen={isChatOpen} 
         onClose={() => setIsChatOpen(false)}
-        activeContext={activeTab === 'executive' ? 'executive' : 'peer'}
+        activeContext={activeTab === 'executive' ? 'executive' : activeTab === 'peer' ? 'peer' : 'ingestion'}
       />
 
       {/* Footer */}
