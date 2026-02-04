@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -8,16 +8,91 @@ import {
   ShieldAlert,
   ExternalLink,
   Wifi,
-  Database
+  Database,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
-import { executiveInsights, mizuhoMetrics } from '@/data/dataSources';
+import { executiveInsights, mizuhoMetrics, BankMetric } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useAllMetrics, useDataFreshness } from '@/hooks/useRegulatoryData';
+import { useToast } from '@/hooks/use-toast';
 
 export function ExecutiveSummary() {
   const [useRealTimeData, setUseRealTimeData] = useState(false);
+  const { toast } = useToast();
+  
+  // Fetch real-time metrics when toggle is on
+  const { data: realTimeMetrics, isLoading, isError, refetch, dataUpdatedAt } = useAllMetrics('623806');
+  
+  // Transform real-time API data to match BankMetric format
+  const liveMetrics: BankMetric[] = useMemo(() => {
+    if (!realTimeMetrics || !useRealTimeData) return mizuhoMetrics;
+    
+    return realTimeMetrics.map(metric => {
+      // Find corresponding static metric for fallback values
+      const staticMetric = mizuhoMetrics.find(m => 
+        m.id.toLowerCase().includes(metric.metricId) || 
+        metric.metricId.includes(m.id.toLowerCase())
+      );
+      
+      // Calculate change from quarterly data if available
+      const qData = metric.data.quarterlyData || [];
+      const change = qData.length >= 2 
+        ? parseFloat(((qData[0]?.value - qData[1]?.value) / (qData[1]?.value || 1) * 100).toFixed(2))
+        : staticMetric?.change || 0;
+      
+      // Format value with unit
+      const currentValue = metric.data.currentValue;
+      const formattedValue = currentValue !== undefined 
+        ? `${currentValue}${metric.data.unit}` 
+        : staticMetric?.value || 'N/A';
+      
+      // Determine threshold status
+      const getThresholdStatus = (): 'good' | 'warning' | 'critical' => {
+        if (!currentValue || !metric.data.regulatoryMinimum) return 'good';
+        const buffer = currentValue - metric.data.regulatoryMinimum;
+        if (buffer > 5) return 'good';
+        if (buffer > 2) return 'warning';
+        return 'critical';
+      };
+      
+      return {
+        id: metric.metricId,
+        label: metric.data.metricName || staticMetric?.label || metric.metricId.toUpperCase(),
+        value: formattedValue,
+        change,
+        changeLabel: 'vs prior quarter',
+        source: metric.source || 'FFIEC CDR',
+        reportType: staticMetric?.reportType || 'Live Data',
+        sourceUrl: metric.url || staticMetric?.sourceUrl || 'https://cdr.ffiec.gov',
+        bankId: 'mizuho',
+        description: staticMetric?.description || `Real-time ${metric.data.metricName} data`,
+        threshold: {
+          min: metric.data.regulatoryMinimum,
+          status: getThresholdStatus()
+        }
+      };
+    });
+  }, [realTimeMetrics, useRealTimeData]);
+  
+  // Get data freshness info
+  const latestScrapedAt = realTimeMetrics?.[0]?.scrapedAt;
+  const { isFresh, age } = useDataFreshness(latestScrapedAt);
+  
+  const handleRefresh = async () => {
+    toast({
+      title: 'Refreshing metrics...',
+      description: 'Fetching latest data from regulatory sources',
+    });
+    await refetch();
+  };
+  
+  // Use live or static metrics based on toggle
+  const displayMetrics = useRealTimeData ? liveMetrics : mizuhoMetrics;
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'strength':
@@ -212,13 +287,16 @@ export function ExecutiveSummary() {
           <div>
             <h2 className="text-xl font-bold text-foreground">Institution Metrics</h2>
             <p className="text-sm text-muted-foreground">
-              Key performance indicators from regulatory filings
+              {useRealTimeData 
+                ? `Live data from FFIEC, FRED, and regulatory APIs${age ? ` • Updated ${age}` : ''}`
+                : 'Key performance indicators from regulatory filings'
+              }
             </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Demo</span>
+              <Database className={`w-4 h-4 ${!useRealTimeData ? 'text-foreground' : 'text-muted-foreground'}`} />
+              <span className={`text-sm ${!useRealTimeData ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>Demo</span>
             </div>
             <Switch
               checked={useRealTimeData}
@@ -226,14 +304,40 @@ export function ExecutiveSummary() {
               aria-label="Toggle real-time data"
             />
             <div className="flex items-center gap-2">
-              <Wifi className="w-4 h-4 text-success" />
-              <span className="text-sm text-success font-medium">Live</span>
+              <Wifi className={`w-4 h-4 ${useRealTimeData ? 'text-success' : 'text-muted-foreground'}`} />
+              <span className={`text-sm ${useRealTimeData ? 'text-success font-medium' : 'text-muted-foreground'}`}>Live</span>
             </div>
+            {useRealTimeData && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isLoading}
+                className="ml-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
+        {isLoading && useRealTimeData && (
+          <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+            <span>Fetching live data from regulatory sources...</span>
+          </div>
+        )}
+        {isError && useRealTimeData && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+            <p className="text-sm text-destructive">Failed to fetch live data. Showing cached results.</p>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {mizuhoMetrics.map((metric) => (
-            <BankMetricCard key={metric.id} metric={metric} isRealTime={useRealTimeData} />
+          {displayMetrics.map((metric) => (
+            <BankMetricCard key={metric.id} metric={metric} isRealTime={useRealTimeData && !isLoading} />
           ))}
         </div>
       </div>
