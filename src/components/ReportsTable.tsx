@@ -51,9 +51,9 @@ interface ReportsTableProps {
 
 export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProps) {
   const getFileIcon = (fileName: string) => {
-    if (fileName.endsWith('.pdf')) return <FileText className="w-4 h-4 text-red-500" />;
-    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return <FileSpreadsheet className="w-4 h-4 text-green-600" />;
-    if (fileName.endsWith('.csv')) return <FileSpreadsheet className="w-4 h-4 text-blue-500" />;
+    if (fileName.endsWith('.pdf')) return <FileText className="w-4 h-4 text-destructive" />;
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return <FileSpreadsheet className="w-4 h-4 text-primary" />;
+    if (fileName.endsWith('.csv')) return <FileSpreadsheet className="w-4 h-4 text-accent-foreground" />;
     return <File className="w-4 h-4 text-muted-foreground" />;
   };
 
@@ -61,28 +61,28 @@ export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProp
     switch (status) {
       case 'analyzed':
         return (
-          <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20 hover:bg-green-500/20">
+          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
             <CheckCircle2 className="w-3 h-3 mr-1" />
             Analyzed
           </Badge>
         );
       case 'processing':
         return (
-          <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+          <Badge variant="secondary">
             <Loader2 className="w-3 h-3 mr-1 animate-spin" />
             Processing
           </Badge>
         );
       case 'error':
         return (
-          <Badge variant="destructive" className="bg-red-500/10 text-red-600 border-red-500/20">
+          <Badge variant="destructive">
             <AlertTriangle className="w-3 h-3 mr-1" />
             Error
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+          <Badge variant="outline">
             <Clock className="w-3 h-3 mr-1" />
             Pending
           </Badge>
@@ -108,7 +108,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProp
           {sourceInfo.label}
         </Badge>
         {isRealTime && (
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
             Live
           </Badge>
         )}

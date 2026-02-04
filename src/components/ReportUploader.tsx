@@ -224,19 +224,6 @@ export function ReportUploader() {
     return <File className="w-4 h-4" />;
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'analyzed':
-        return <Badge variant="success" className="text-xs"><CheckCircle2 className="w-3 h-3 mr-1" />Analyzed</Badge>;
-      case 'processing':
-        return <Badge variant="secondary" className="text-xs"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Processing</Badge>;
-      case 'error':
-        return <Badge variant="destructive" className="text-xs"><AlertTriangle className="w-3 h-3 mr-1" />Error</Badge>;
-      default:
-        return <Badge variant="outline" className="text-xs"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
-    }
-  };
-
   return (
     <div className="space-y-6">
       <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'upload' | 'api')}>
