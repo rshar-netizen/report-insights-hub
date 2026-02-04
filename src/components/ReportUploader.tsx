@@ -6,14 +6,12 @@ import {
   Plus,
   Trash2,
   RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
   Loader2,
   FileSpreadsheet,
   File,
   Sparkles
 } from 'lucide-react';
+import { ReportsTable } from './ReportsTable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -224,19 +222,6 @@ export function ReportUploader() {
     if (fileName.endsWith('.pdf')) return <FileText className="w-4 h-4" />;
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return <FileSpreadsheet className="w-4 h-4" />;
     return <File className="w-4 h-4" />;
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'analyzed':
-        return <Badge variant="success" className="text-xs"><CheckCircle2 className="w-3 h-3 mr-1" />Analyzed</Badge>;
-      case 'processing':
-        return <Badge variant="secondary" className="text-xs"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Processing</Badge>;
-      case 'error':
-        return <Badge variant="destructive" className="text-xs"><AlertTriangle className="w-3 h-3 mr-1" />Error</Badge>;
-      default:
-        return <Badge variant="outline" className="text-xs"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
-    }
   };
 
   return (
@@ -516,49 +501,12 @@ export function ReportUploader() {
         </TabsContent>
       </Tabs>
 
-      {/* Ingested Reports List */}
-      {reports.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Ingested Reports</CardTitle>
-            <CardDescription>
-              {reports.length} report{reports.length !== 1 ? 's' : ''} available for analysis
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {reports.slice(0, 10).map(report => (
-                <div key={report.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    {getFileIcon(report.name)}
-                    <div>
-                      <p className="font-medium text-sm">{report.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {REPORT_TYPES.find(t => t.value === report.report_type)?.label}
-                        {report.institution_name && ` • ${report.institution_name}`}
-                        {report.reporting_period && ` • ${report.reporting_period}`}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(report.status)}
-                    {report.status === 'pending' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => analyzeReport(report)}
-                      >
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Analyze
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Reports Table */}
+      <ReportsTable 
+        reports={reports} 
+        isLoading={reportsLoading} 
+        onAnalyze={analyzeReport} 
+      />
     </div>
   );
 }
