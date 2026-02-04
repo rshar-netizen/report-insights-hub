@@ -110,44 +110,41 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         url: targetUrl,
-        formats: [
-          'markdown',
-          {
-            type: 'json',
-            schema: {
-              type: 'object',
-              properties: {
-                metricName: { type: 'string' },
-                currentValue: { type: 'number' },
-                unit: { type: 'string' },
-                quarterlyData: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      period: { type: 'string' },
-                      value: { type: 'number' }
-                    }
+        formats: ['markdown', 'extract'],
+        extract: {
+          schema: {
+            type: 'object',
+            properties: {
+              metricName: { type: 'string' },
+              currentValue: { type: 'number' },
+              unit: { type: 'string' },
+              quarterlyData: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    period: { type: 'string' },
+                    value: { type: 'number' }
                   }
-                },
-                yearlyData: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      period: { type: 'string' },
-                      value: { type: 'number' }
-                    }
+                }
+              },
+              yearlyData: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    period: { type: 'string' },
+                    value: { type: 'number' }
                   }
-                },
-                peerMedian: { type: 'number' },
-                regulatoryMinimum: { type: 'number' },
-                reportingPeriod: { type: 'string' }
-              }
-            },
-            prompt: metricConfig.extractPrompt
-          }
-        ],
+                }
+              },
+              peerMedian: { type: 'number' },
+              regulatoryMinimum: { type: 'number' },
+              reportingPeriod: { type: 'string' }
+            }
+          },
+          prompt: metricConfig.extractPrompt
+        },
         onlyMainContent: true,
         waitFor: 3000,
       }),
@@ -166,7 +163,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const extractedData = data.data?.json || data.json || {};
+    const extractedData = data.data?.extract || data.extract || {};
     
     const result = {
       success: true,
