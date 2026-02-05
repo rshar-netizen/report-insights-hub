@@ -341,9 +341,8 @@ export function ExecutiveSummary() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Performance Tracking - Q-o-Q and Y-o-Y */}
       <MetricTrendTracker />
