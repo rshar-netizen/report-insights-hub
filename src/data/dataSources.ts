@@ -51,6 +51,7 @@ export interface ExecutiveInsight {
   metric?: string;
   source: string;
   reportType: string;
+  confidence?: number;
 }
 
 export interface BankMetric {
