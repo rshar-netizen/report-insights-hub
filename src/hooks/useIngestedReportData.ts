@@ -515,7 +515,8 @@ export function useRealExecutiveInsights() {
         summary: insight.content, // Show full content without truncation
         metric: metricMatch ? metricMatch[0] : undefined,
         source: latestReport.source === 'upload' ? 'Call Report' : latestReport.source.toUpperCase(),
-        reportType: `${latestReport.report_type} (${reportingPeriod || 'Latest'})`
+        reportType: `${latestReport.report_type} (${reportingPeriod || 'Latest'})`,
+        confidence: insight.confidence_score ?? undefined
       });
     });
   }
