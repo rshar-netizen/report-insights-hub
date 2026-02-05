@@ -80,7 +80,71 @@ export function useIngestedReports() {
   });
 }
 
-// Get the latest report with metrics
+// Extract reporting period from filename if not set (e.g., "UBPR_2025-12-31.pdf" -> "Q4 2025")
+function extractPeriodFromFilename(filename: string): string | null {
+  // Match patterns like 2025-12-31, 2025_12_31, 12-31-2025
+  const isoMatch = filename.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month] = isoMatch;
+    const quarter = Math.ceil(parseInt(month) / 3);
+    return `Q${quarter} ${year}`;
+  }
+  
+  const usMatch = filename.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if (usMatch) {
+    const [, month, , year] = usMatch;
+    const quarter = Math.ceil(parseInt(month) / 3);
+    return `Q${quarter} ${year}`;
+  }
+  
+  return null;
+}
+
+// Get all reports with metrics, aggregated
+export function useAllReportMetrics() {
+  const { data: reports, isLoading, error } = useIngestedReports();
+
+  // Aggregate metrics from all reports with metric_extraction insights
+  const allMetrics: ExtractedMetrics = {};
+  const metricSources: Record<string, { reportType: string; period: string; source: string }> = {};
+
+  reports?.forEach(report => {
+    const metricsInsight = report.insights.find(
+      i => i.insight_type === 'metric_extraction' && i.metrics
+    );
+    
+    if (metricsInsight?.metrics) {
+      const period = report.reporting_period || extractPeriodFromFilename(report.name) || 'Latest';
+      const sourceLabel = report.source === 'ffiec' ? 'FFIEC CDR' : 
+                          report.source === 'fdic' ? 'FDIC' : 
+                          report.report_type.toUpperCase();
+      
+      // Merge metrics, tracking sources
+      Object.entries(metricsInsight.metrics).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && (typeof value === 'number' && value > 0)) {
+          if (!(key in allMetrics) || !allMetrics[key as keyof ExtractedMetrics]) {
+            (allMetrics as Record<string, number>)[key] = value as number;
+            metricSources[key] = { 
+              reportType: report.report_type.toUpperCase(), 
+              period, 
+              source: sourceLabel 
+            };
+          }
+        }
+      });
+    }
+  });
+
+  return {
+    metrics: allMetrics,
+    metricSources,
+    isLoading,
+    error,
+    hasData: Object.keys(allMetrics).length > 0,
+  };
+}
+
+// Get the latest report with metrics (legacy, single-report)
 export function useLatestReportMetrics() {
   const { data: reports, isLoading, error } = useIngestedReports();
 
@@ -94,7 +158,7 @@ export function useLatestReportMetrics() {
   );
 
   const extractedMetrics = metricsInsight?.metrics || null;
-  const reportingPeriod = latestReport?.reporting_period || null;
+  const reportingPeriod = latestReport?.reporting_period || extractPeriodFromFilename(latestReport?.name || '') || null;
   const reportName = latestReport?.name || null;
   const institutionName = latestReport?.institution_name || null;
   const source = latestReport?.source || 'upload';
