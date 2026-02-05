@@ -365,6 +365,18 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={fetchAllSources}
+              disabled={fetchingAll || fetchingIds.size > 0}
+            >
+              {fetchingAll ? (
+                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Fetching All...</>
+              ) : (
+                <><Download className="w-3 h-3 mr-1" />Fetch All 9 Sources</>
+              )}
+            </Button>
             <Badge variant="outline" className="text-xs">
               <Database className="w-3 h-3 mr-1" />
               {realTimeCount} Live

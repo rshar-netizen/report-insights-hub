@@ -100,13 +100,21 @@ function extractPeriodFromFilename(filename: string): string | null {
   return null;
 }
 
-// Get all reports with metrics, aggregated
+// Metric source entry tracking multiple reports
+interface MetricSourceEntry {
+  reportType: string;
+  period: string;
+  source: string;
+}
+
+// Get all reports with metrics, aggregated - tracks MULTIPLE sources per metric
 export function useAllReportMetrics() {
   const { data: reports, isLoading, error } = useIngestedReports();
 
   // Aggregate metrics from all reports with metric_extraction insights
   const allMetrics: ExtractedMetrics = {};
-  const metricSources: Record<string, { reportType: string; period: string; source: string }> = {};
+  // Now track MULTIPLE sources per metric key
+  const metricSources: Record<string, MetricSourceEntry[]> = {};
 
   reports?.forEach(report => {
     const metricsInsight = report.insights.find(
@@ -117,18 +125,42 @@ export function useAllReportMetrics() {
       const period = report.reporting_period || extractPeriodFromFilename(report.name) || 'Latest';
       const sourceLabel = report.source === 'ffiec' ? 'FFIEC CDR' : 
                           report.source === 'fdic' ? 'FDIC' : 
+                          report.source === 'sec' ? 'SEC EDGAR' :
+                          report.source === 'fred' ? 'FRED' :
                           report.report_type.toUpperCase();
       
-      // Merge metrics, tracking sources
+      const reportType = report.report_type === 'call_report' ? 'Call Report' :
+                         report.report_type === 'ubpr' ? 'UBPR' :
+                         report.report_type === 'fr_y9c' ? 'FRY-9C' :
+                         report.report_type === 'summary_of_deposits' ? 'Summary of Deposits' :
+                         report.report_type === 'sec_filing' ? 'SEC Filing' :
+                         report.report_type === 'economic_indicator' ? 'Economic Indicator' :
+                         report.report_type.toUpperCase();
+      
+      // Merge metrics, tracking ALL sources that contribute to each metric
       Object.entries(metricsInsight.metrics).forEach(([key, value]) => {
         if (value !== undefined && value !== null && (typeof value === 'number' && value > 0)) {
-          if (!(key in allMetrics) || !allMetrics[key as keyof ExtractedMetrics]) {
-            (allMetrics as Record<string, number>)[key] = value as number;
-            metricSources[key] = { 
-              reportType: report.report_type.toUpperCase(), 
+          // Add to sources array
+          if (!metricSources[key]) {
+            metricSources[key] = [];
+          }
+          
+          // Check if this source already exists
+          const existingSource = metricSources[key].find(
+            s => s.reportType === reportType && s.source === sourceLabel
+          );
+          
+          if (!existingSource) {
+            metricSources[key].push({ 
+              reportType, 
               period, 
               source: sourceLabel 
-            };
+            });
+          }
+          
+          // Use the first (or aggregate) value
+          if (!(key in allMetrics) || !allMetrics[key as keyof ExtractedMetrics]) {
+            (allMetrics as Record<string, number>)[key] = value as number;
           }
         }
       });
