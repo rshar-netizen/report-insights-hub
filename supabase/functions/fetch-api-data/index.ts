@@ -135,8 +135,11 @@ async function fetchFdicData(sourceId: string): Promise<FetchResult> {
     
     const data = await response.json();
     
-    // Check if we got actual data
-    const hasData = data.data && data.data.length > 0;
+    // FDIC API returns nested structure: data.data[].data.FIELD
+    const rawRecords = data.data || [];
+    // Extract the actual data from nested structure
+    const records = rawRecords.map((item: { data?: Record<string, unknown> }) => item.data || item);
+    const hasData = records.length > 0;
     
     if (!hasData) {
       return {
@@ -149,7 +152,6 @@ async function fetchFdicData(sourceId: string): Promise<FetchResult> {
     }
     
     // Format the data as markdown
-    const records = data.data;
     let markdown = `# ${description}\n\n**Institution:** ${MIZUHO_IDENTIFIERS.institutionName}\n**Cert Number:** ${MIZUHO_IDENTIFIERS.certNumber}\n\n`;
     
     if (sourceId === 'fdic-financials') {
@@ -159,7 +161,14 @@ async function fetchFdicData(sourceId: string): Promise<FetchResult> {
       
       records.slice(0, 8).forEach((r: Record<string, unknown>) => {
         const repDate = r.REPDTE ? String(r.REPDTE) : 'N/A';
-        markdown += `| ${repDate} | $${formatNumber(r.ASSET as number)}M | $${formatNumber(r.DEP as number)}M | $${formatNumber(r.NETINC as number)}K | $${formatNumber(r.EQ as number)}M | ${r.ROA || 'N/A'}% | ${r.ROE || 'N/A'}% | ${r.NIMY || 'N/A'}% |\n`;
+        const asset = typeof r.ASSET === 'number' ? r.ASSET : 0;
+        const dep = typeof r.DEP === 'number' ? r.DEP : 0;
+        const netinc = typeof r.NETINC === 'number' ? r.NETINC : 0;
+        const eq = typeof r.EQ === 'number' ? r.EQ : 0;
+        const roa = r.ROA !== undefined ? Number(r.ROA).toFixed(2) : 'N/A';
+        const roe = r.ROE !== undefined ? Number(r.ROE).toFixed(2) : 'N/A';
+        const nimy = r.NIMY !== undefined ? Number(r.NIMY).toFixed(2) : 'N/A';
+        markdown += `| ${repDate} | $${formatNumber(asset)}K | $${formatNumber(dep)}K | $${formatNumber(netinc)}K | $${formatNumber(eq)}K | ${roa}% | ${roe}% | ${nimy}% |\n`;
       });
     } else if (sourceId === 'fdic-sod') {
       markdown += `## Summary of Deposits by Branch\n\n`;
@@ -167,7 +176,8 @@ async function fetchFdicData(sourceId: string): Promise<FetchResult> {
       markdown += `|-------|----------|------|\n`;
       
       records.slice(0, 20).forEach((r: Record<string, unknown>) => {
-        markdown += `| ${r.STNAME || 'N/A'} | $${formatNumber(r.DEPSUMBR as number)}K | ${r.YEAR || 'N/A'} |\n`;
+        const depsumbr = typeof r.DEPSUMBR === 'number' ? r.DEPSUMBR : 0;
+        markdown += `| ${r.STNAME || 'N/A'} | $${formatNumber(depsumbr)}K | ${r.YEAR || 'N/A'} |\n`;
       });
     }
     
