@@ -143,10 +143,43 @@ interface ReportsTableProps {
   rssdId?: string;
 }
 
+// Deduplicate reports: keep only the latest version for each unique report
+function deduplicateReports(reports: IngestedReport[]): (IngestedReport & { hasOlderVersion?: boolean; previousDate?: string })[] {
+  const reportMap = new Map<string, IngestedReport[]>();
+  
+  // Group reports by unique key (name + source + report_type + reporting_period)
+  reports.forEach(report => {
+    const key = `${report.name}-${report.source}-${report.report_type}-${report.reporting_period || ''}`;
+    const existing = reportMap.get(key) || [];
+    existing.push(report);
+    reportMap.set(key, existing);
+  });
+  
+  // For each group, keep only the latest version
+  const deduplicated: (IngestedReport & { hasOlderVersion?: boolean; previousDate?: string })[] = [];
+  
+  reportMap.forEach((versions) => {
+    // Sort by created_at descending (newest first)
+    versions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latest = versions[0];
+    deduplicated.push({
+      ...latest,
+      hasOlderVersion: versions.length > 1,
+      previousDate: versions.length > 1 ? versions[1].created_at : undefined
+    });
+  });
+  
+  // Sort by created_at descending
+  return deduplicated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
 export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' }: ReportsTableProps) {
   const { toast } = useToast();
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
+  
+  // Deduplicate reports to show only the latest version
+  const deduplicatedReports = deduplicateReports(reports);
   const [fetchingAll, setFetchingAll] = useState(false);
 
   const getFileIcon = (fileName: string) => {
@@ -349,10 +382,11 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
     );
   }
 
-  const analyzedCount = reports.filter(r => r.status === 'analyzed').length;
-  const pendingCount = reports.filter(r => r.status === 'pending').length;
-  const realTimeCount = reports.filter(r => r.source !== 'upload').length;
+  const analyzedCount = deduplicatedReports.filter(r => r.status === 'analyzed').length;
+  const pendingCount = deduplicatedReports.filter(r => r.status === 'pending').length;
+  const realTimeCount = deduplicatedReports.filter(r => r.source !== 'upload').length;
   const availableNotIngested = AVAILABLE_DATA_SOURCES.filter(s => !isSourceIngested(s.id)).length;
+  const duplicatesRemoved = reports.length - deduplicatedReports.length;
 
   return (
     <Card>
@@ -361,7 +395,12 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           <div>
             <CardTitle className="text-lg">All Reports</CardTitle>
             <CardDescription className="mt-1">
-              {reports.length} ingested • {availableNotIngested} available from APIs • {analyzedCount} analyzed
+              {deduplicatedReports.length} unique reports • {availableNotIngested} available from APIs • {analyzedCount} analyzed
+              {duplicatesRemoved > 0 && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({duplicatesRemoved} older versions hidden)
+                </span>
+              )}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -393,7 +432,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           <TabsList className="mb-4">
             <TabsTrigger value="ingested" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              Ingested Reports ({reports.length})
+              Ingested Reports ({deduplicatedReports.length})
             </TabsTrigger>
             <TabsTrigger value="available" className="flex items-center gap-2">
               <Globe className="w-4 h-4" />
@@ -402,7 +441,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           </TabsList>
 
           <TabsContent value="ingested">
-            {reports.length === 0 ? (
+            {deduplicatedReports.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground border rounded-md">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No reports ingested yet</p>
@@ -418,13 +457,13 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                       <TableHead>Source</TableHead>
                       <TableHead>Institution</TableHead>
                       <TableHead>Period</TableHead>
-                      <TableHead>Ingested</TableHead>
+                      <TableHead>Last Updated</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reports.map((report) => (
+                    {deduplicatedReports.map((report) => (
                       <TableRow key={report.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -454,9 +493,17 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                           <span className="text-sm">{report.reporting_period || '—'}</span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground">
                             {formatDate(report.created_at)}
-                          </span>
+                            {report.hasOlderVersion && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">
+                                  <RefreshCw className="w-2.5 h-2.5 mr-0.5" />
+                                  Updated
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(report.status)}</TableCell>
                         <TableCell className="text-right">
