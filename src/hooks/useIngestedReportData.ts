@@ -11,6 +11,7 @@ interface ExtractedMetrics {
   tier1_leverage_ratio?: number;
   net_interest_margin?: number;
   roa?: number;
+  return_on_average_assets?: number;
   roe?: number;
   efficiency_ratio?: number;
   npl_ratio?: number;
@@ -79,7 +80,71 @@ export function useIngestedReports() {
   });
 }
 
-// Get the latest report with metrics
+// Extract reporting period from filename if not set (e.g., "UBPR_2025-12-31.pdf" -> "Q4 2025")
+function extractPeriodFromFilename(filename: string): string | null {
+  // Match patterns like 2025-12-31, 2025_12_31, 12-31-2025
+  const isoMatch = filename.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month] = isoMatch;
+    const quarter = Math.ceil(parseInt(month) / 3);
+    return `Q${quarter} ${year}`;
+  }
+  
+  const usMatch = filename.match(/(\d{2})-(\d{2})-(\d{4})/);
+  if (usMatch) {
+    const [, month, , year] = usMatch;
+    const quarter = Math.ceil(parseInt(month) / 3);
+    return `Q${quarter} ${year}`;
+  }
+  
+  return null;
+}
+
+// Get all reports with metrics, aggregated
+export function useAllReportMetrics() {
+  const { data: reports, isLoading, error } = useIngestedReports();
+
+  // Aggregate metrics from all reports with metric_extraction insights
+  const allMetrics: ExtractedMetrics = {};
+  const metricSources: Record<string, { reportType: string; period: string; source: string }> = {};
+
+  reports?.forEach(report => {
+    const metricsInsight = report.insights.find(
+      i => i.insight_type === 'metric_extraction' && i.metrics
+    );
+    
+    if (metricsInsight?.metrics) {
+      const period = report.reporting_period || extractPeriodFromFilename(report.name) || 'Latest';
+      const sourceLabel = report.source === 'ffiec' ? 'FFIEC CDR' : 
+                          report.source === 'fdic' ? 'FDIC' : 
+                          report.report_type.toUpperCase();
+      
+      // Merge metrics, tracking sources
+      Object.entries(metricsInsight.metrics).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && (typeof value === 'number' && value > 0)) {
+          if (!(key in allMetrics) || !allMetrics[key as keyof ExtractedMetrics]) {
+            (allMetrics as Record<string, number>)[key] = value as number;
+            metricSources[key] = { 
+              reportType: report.report_type.toUpperCase(), 
+              period, 
+              source: sourceLabel 
+            };
+          }
+        }
+      });
+    }
+  });
+
+  return {
+    metrics: allMetrics,
+    metricSources,
+    isLoading,
+    error,
+    hasData: Object.keys(allMetrics).length > 0,
+  };
+}
+
+// Get the latest report with metrics (legacy, single-report)
 export function useLatestReportMetrics() {
   const { data: reports, isLoading, error } = useIngestedReports();
 
@@ -93,7 +158,7 @@ export function useLatestReportMetrics() {
   );
 
   const extractedMetrics = metricsInsight?.metrics || null;
-  const reportingPeriod = latestReport?.reporting_period || null;
+  const reportingPeriod = latestReport?.reporting_period || extractPeriodFromFilename(latestReport?.name || '') || null;
   const reportName = latestReport?.name || null;
   const institutionName = latestReport?.institution_name || null;
   const source = latestReport?.source || 'upload';
@@ -110,55 +175,40 @@ export function useLatestReportMetrics() {
   };
 }
 
-// Convert extracted metrics to BankMetric format
+// Convert extracted metrics to BankMetric format - aggregates from ALL ingested reports
 export function useRealBankMetrics() {
   const { 
     metrics, 
-    reportingPeriod, 
-    institutionName, 
-    source, 
+    metricSources,
     isLoading, 
     error, 
     hasData 
-  } = useLatestReportMetrics();
+  } = useAllReportMetrics();
   
   const { data: reports } = useIngestedReports();
+  
+  // Get the latest report for institution name and period
+  const latestReport = reports?.find(r => 
+    r.insights.some(i => i.insight_type === 'metric_extraction' && i.metrics)
+  );
+  const institutionName = latestReport?.institution_name || null;
+  const reportingPeriod = latestReport?.reporting_period || extractPeriodFromFilename(latestReport?.name || '') || null;
 
-  // Format reporting period for display
-  const formatPeriod = (period: string | null): string => {
-    if (!period) return '';
-    // Handle formats like "12/31/2025" or "Q4 2025"
-    if (period.includes('/')) {
-      const parts = period.split('/');
-      if (parts.length === 3) {
-        const month = parseInt(parts[0]);
-        const year = parts[2];
-        const quarter = Math.ceil(month / 3);
-        return `Q${quarter} ${year}`;
-      }
-    }
-    return period;
-  };
-
-  const periodLabel = formatPeriod(reportingPeriod);
-  const sourceLabel = source === 'ffiec' ? 'FFIEC CDR' : 
-                      source === 'fdic' ? 'FDIC' : 
-                      source === 'upload' ? 'Call Report' : source.toUpperCase();
-
-  // Build metrics from extracted data
+  // Build metrics from extracted data with proper source attribution
   const realMetrics: BankMetric[] = [];
 
   if (metrics) {
     // Tier 1 Capital Ratio
     if (metrics.tier1_capital_ratio !== undefined && metrics.tier1_capital_ratio > 0) {
+      const src = metricSources['tier1_capital_ratio'];
       realMetrics.push({
         id: 'tier1-capital',
         label: 'Tier 1 Capital Ratio',
         value: `${metrics.tier1_capital_ratio}%`,
-        change: 0, // We'd need historical data for this
-        changeLabel: periodLabel ? `as of ${periodLabel}` : '',
-        source: sourceLabel,
-        reportType: 'Call Report Schedule RC-R',
+        change: 0,
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'Call Report',
+        reportType: src?.reportType || 'Call Report Schedule RC-R',
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Core capital as % of risk-weighted assets. Measures ability to absorb losses.',
@@ -168,15 +218,17 @@ export function useRealBankMetrics() {
 
     // CET1 Ratio
     const cet1Value = metrics.common_equity_tier1_ratio || metrics.cet1_ratio;
+    const cet1Key = metrics.common_equity_tier1_ratio ? 'common_equity_tier1_ratio' : 'cet1_ratio';
     if (cet1Value !== undefined && cet1Value > 0) {
+      const src = metricSources[cet1Key];
       realMetrics.push({
         id: 'cet1',
         label: 'CET1 Ratio',
         value: `${cet1Value}%`,
         change: 0,
-        changeLabel: periodLabel ? `as of ${periodLabel}` : '',
-        source: sourceLabel,
-        reportType: 'Call Report Schedule RC-R',
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'Call Report',
+        reportType: src?.reportType || 'Call Report Schedule RC-R',
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Common Equity Tier 1 capital as % of risk-weighted assets.',
@@ -186,14 +238,15 @@ export function useRealBankMetrics() {
 
     // Total Capital Ratio
     if (metrics.total_capital_ratio !== undefined && metrics.total_capital_ratio > 0) {
+      const src = metricSources['total_capital_ratio'];
       realMetrics.push({
         id: 'total-capital',
         label: 'Total Capital Ratio',
         value: `${metrics.total_capital_ratio}%`,
         change: 0,
-        changeLabel: periodLabel ? `as of ${periodLabel}` : '',
-        source: sourceLabel,
-        reportType: 'Call Report Schedule RC-R',
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Total regulatory capital as % of risk-weighted assets.',
@@ -203,14 +256,15 @@ export function useRealBankMetrics() {
 
     // Tier 1 Leverage Ratio
     if (metrics.tier1_leverage_ratio !== undefined && metrics.tier1_leverage_ratio > 0) {
+      const src = metricSources['tier1_leverage_ratio'];
       realMetrics.push({
         id: 'leverage-ratio',
         label: 'Tier 1 Leverage Ratio',
         value: `${metrics.tier1_leverage_ratio}%`,
         change: 0,
-        changeLabel: periodLabel ? `as of ${periodLabel}` : '',
-        source: sourceLabel,
-        reportType: 'Call Report Schedule RC-R',
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Tier 1 capital divided by average total consolidated assets.',
@@ -220,14 +274,15 @@ export function useRealBankMetrics() {
 
     // Net Interest Margin
     if (metrics.net_interest_margin !== undefined && metrics.net_interest_margin > 0) {
+      const src = metricSources['net_interest_margin'];
       realMetrics.push({
         id: 'nim',
         label: 'Net Interest Margin',
         value: `${metrics.net_interest_margin}%`,
         change: 0,
-        changeLabel: periodLabel ? `as of ${periodLabel}` : '',
-        source: sourceLabel,
-        reportType: 'Call Report Schedule RI',
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Difference between interest income and interest paid, relative to assets.',
@@ -235,8 +290,101 @@ export function useRealBankMetrics() {
       });
     }
 
+    // ROA (Return on Assets)
+    const roaValue = metrics.roa || metrics.return_on_average_assets;
+    const roaKey = metrics.roa ? 'roa' : 'return_on_average_assets';
+    if (roaValue !== undefined && roaValue > 0) {
+      const src = metricSources[roaKey];
+      realMetrics.push({
+        id: 'roa',
+        label: 'Return on Assets (ROA)',
+        value: `${roaValue}%`,
+        change: 0,
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
+        sourceUrl: 'https://cdr.ffiec.gov/',
+        bankId: 'mizuho',
+        description: 'Net income as a percentage of average total assets.',
+        threshold: { min: 1.0, status: roaValue >= 1.0 ? 'good' : roaValue >= 0.5 ? 'warning' : 'critical' }
+      });
+    }
+
+    // ROE (Return on Equity)
+    if (metrics.roe !== undefined && metrics.roe > 0) {
+      const src = metricSources['roe'];
+      realMetrics.push({
+        id: 'roe',
+        label: 'Return on Equity (ROE)',
+        value: `${metrics.roe}%`,
+        change: 0,
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
+        sourceUrl: 'https://cdr.ffiec.gov/',
+        bankId: 'mizuho',
+        description: 'Net income as a percentage of average total equity.',
+        threshold: { min: 10.0, status: metrics.roe >= 10 ? 'good' : metrics.roe >= 6 ? 'warning' : 'critical' }
+      });
+    }
+
+    // Efficiency Ratio
+    if (metrics.efficiency_ratio !== undefined && metrics.efficiency_ratio > 0) {
+      const src = metricSources['efficiency_ratio'];
+      realMetrics.push({
+        id: 'efficiency',
+        label: 'Efficiency Ratio',
+        value: `${metrics.efficiency_ratio}%`,
+        change: 0,
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
+        sourceUrl: 'https://cdr.ffiec.gov/',
+        bankId: 'mizuho',
+        description: 'Non-interest expenses divided by revenue. Lower is better.',
+        threshold: { max: 60.0, status: metrics.efficiency_ratio <= 55 ? 'good' : metrics.efficiency_ratio <= 65 ? 'warning' : 'critical' }
+      });
+    }
+
+    // NPL Ratio
+    if (metrics.npl_ratio !== undefined && metrics.npl_ratio > 0) {
+      const src = metricSources['npl_ratio'];
+      realMetrics.push({
+        id: 'npl',
+        label: 'NPL Ratio',
+        value: `${metrics.npl_ratio}%`,
+        change: 0,
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'UBPR',
+        reportType: src?.reportType || 'UBPR',
+        sourceUrl: 'https://cdr.ffiec.gov/',
+        bankId: 'mizuho',
+        description: 'Non-performing loans as a percentage of total loans.',
+        threshold: { max: 2.0, status: metrics.npl_ratio <= 1 ? 'good' : metrics.npl_ratio <= 2 ? 'warning' : 'critical' }
+      });
+    }
+
+    // LCR (Liquidity Coverage Ratio)
+    if (metrics.lcr !== undefined && metrics.lcr > 0) {
+      const src = metricSources['lcr'];
+      realMetrics.push({
+        id: 'lcr',
+        label: 'Liquidity Coverage Ratio',
+        value: `${metrics.lcr}%`,
+        change: 0,
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'Call Report',
+        reportType: src?.reportType || 'Call Report',
+        sourceUrl: 'https://cdr.ffiec.gov/',
+        bankId: 'mizuho',
+        description: 'High-quality liquid assets to net cash outflows over 30 days.',
+        threshold: { min: 100.0, status: metrics.lcr >= 120 ? 'good' : metrics.lcr >= 100 ? 'warning' : 'critical' }
+      });
+    }
+
     // Total Assets (convert to display format)
     if (metrics.total_assets !== undefined && metrics.total_assets > 0) {
+      const src = metricSources['total_assets'];
       const assetsDisplay = metrics.total_assets >= 1e12 
         ? `$${(metrics.total_assets / 1e12).toFixed(2)}T`
         : metrics.total_assets >= 1e9 
@@ -248,9 +396,9 @@ export function useRealBankMetrics() {
         label: 'Total Assets',
         value: assetsDisplay,
         change: 0,
-        changeLabel: periodLabel ? `as of ${periodLabel}` : '',
-        source: sourceLabel,
-        reportType: 'Call Report Schedule RC',
+        changeLabel: src?.period ? `as of ${src.period}` : '',
+        source: src?.source || 'Call Report',
+        reportType: src?.reportType || 'Call Report Schedule RC',
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Total consolidated assets of the institution.',
@@ -261,7 +409,7 @@ export function useRealBankMetrics() {
 
   return {
     metrics: realMetrics,
-    reportingPeriod: periodLabel,
+    reportingPeriod,
     institutionName,
     isLoading,
     error,
