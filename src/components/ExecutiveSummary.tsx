@@ -10,48 +10,64 @@ import {
   Wifi,
   Database,
   RefreshCw,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
-import { executiveInsights, mizuhoMetrics, BankMetric } from '@/data/dataSources';
+import { executiveInsights, mizuhoMetrics, BankMetric, ExecutiveInsight } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAllMetrics, useDataFreshness } from '@/hooks/useRegulatoryData';
+import { useRealBankMetrics, useRealExecutiveInsights } from '@/hooks/useIngestedReportData';
 import { useToast } from '@/hooks/use-toast';
 
 export function ExecutiveSummary() {
-  const [useRealTimeData, setUseRealTimeData] = useState(false);
+  const [useRealTimeData, setUseRealTimeData] = useState(true); // Default to real data
   const { toast } = useToast();
   
-  // Fetch real-time metrics when toggle is on
-  const { data: realTimeMetrics, isLoading, isError, refetch, dataUpdatedAt } = useAllMetrics('623806');
+  // Fetch real data from ingested reports
+  const { 
+    metrics: realMetrics, 
+    reportingPeriod: metricsReportingPeriod,
+    institutionName,
+    isLoading: metricsLoading,
+    hasData: hasRealMetrics,
+    reportsCount
+  } = useRealBankMetrics();
   
-  // Transform real-time API data to match BankMetric format
-  const liveMetrics: BankMetric[] = useMemo(() => {
-    if (!realTimeMetrics || !useRealTimeData) return mizuhoMetrics;
+  const {
+    insights: realInsights,
+    reportingPeriod: insightsReportingPeriod,
+    isLoading: insightsLoading,
+    hasData: hasRealInsights
+  } = useRealExecutiveInsights();
+  
+  // Fetch live API metrics when toggle is on (for comparison)
+  const { data: apiMetrics, isLoading: apiLoading, isError, refetch, dataUpdatedAt } = useAllMetrics('623806');
+  
+  // Transform API data to match BankMetric format (for live toggle)
+  const liveApiMetrics: BankMetric[] = useMemo(() => {
+    if (!apiMetrics) return [];
     
-    return realTimeMetrics.map(metric => {
-      // Find corresponding static metric for fallback values
+    return apiMetrics.map(metric => {
       const staticMetric = mizuhoMetrics.find(m => 
         m.id.toLowerCase().includes(metric.metricId) || 
         metric.metricId.includes(m.id.toLowerCase())
       );
       
-      // Calculate change from quarterly data if available
       const qData = metric.data.quarterlyData || [];
       const change = qData.length >= 2 
         ? parseFloat(((qData[0]?.value - qData[1]?.value) / (qData[1]?.value || 1) * 100).toFixed(2))
-        : staticMetric?.change || 0;
+        : 0;
       
-      // Format value with unit
       const currentValue = metric.data.currentValue;
       const formattedValue = currentValue !== undefined 
         ? `${currentValue}${metric.data.unit}` 
-        : staticMetric?.value || 'N/A';
+        : 'N/A';
       
-      // Determine threshold status
       const getThresholdStatus = (): 'good' | 'warning' | 'critical' => {
         if (!currentValue || !metric.data.regulatoryMinimum) return 'good';
         const buffer = currentValue - metric.data.regulatoryMinimum;
@@ -77,10 +93,10 @@ export function ExecutiveSummary() {
         }
       };
     });
-  }, [realTimeMetrics, useRealTimeData]);
+  }, [apiMetrics]);
   
   // Get data freshness info
-  const latestScrapedAt = realTimeMetrics?.[0]?.scrapedAt;
+  const latestScrapedAt = apiMetrics?.[0]?.scrapedAt;
   const { isFresh, age } = useDataFreshness(latestScrapedAt);
   
   const handleRefresh = async () => {
@@ -91,8 +107,22 @@ export function ExecutiveSummary() {
     await refetch();
   };
   
-  // Use live or static metrics based on toggle
-  const displayMetrics = useRealTimeData ? liveMetrics : mizuhoMetrics;
+  // Determine which data to display
+  const isLoading = metricsLoading || insightsLoading;
+  
+  // Use real ingested data if available, otherwise fall back to static demo data
+  const displayMetrics = hasRealMetrics && realMetrics.length > 0 
+    ? realMetrics 
+    : mizuhoMetrics;
+  
+  const displayInsights = hasRealInsights && realInsights.length > 0 
+    ? realInsights 
+    : executiveInsights;
+  
+  // Reporting period from ingested data
+  const reportPeriod = metricsReportingPeriod || insightsReportingPeriod || 'Demo Data';
+  const isRealData = hasRealMetrics || hasRealInsights;
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'strength':
@@ -138,18 +168,38 @@ export function ExecutiveSummary() {
     }
   };
 
-  const strengths = executiveInsights.filter(i => i.category === 'strength');
-  const attentionItems = executiveInsights.filter(i => i.category === 'attention' || i.category === 'risk');
-  const opportunities = executiveInsights.filter(i => i.category === 'opportunity');
+  const strengths = displayInsights.filter(i => i.category === 'strength');
+  const attentionItems = displayInsights.filter(i => i.category === 'attention' || i.category === 'risk');
+  const opportunities = displayInsights.filter(i => i.category === 'opportunity');
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Executive Insights Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
-        <p className="text-muted-foreground">
-          Key insights derived from FFIEC, FRED, and NIC regulatory filings as of Q4 2023
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
+          <p className="text-muted-foreground">
+            {isRealData ? (
+              <>
+                Key insights derived from ingested reports
+                {reportPeriod && (
+                  <Badge variant="outline" className="ml-2">
+                    <FileText className="w-3 h-3 mr-1" />
+                    {reportPeriod}
+                  </Badge>
+                )}
+              </>
+            ) : (
+              'Demo data - Upload reports in Data Ingestion tab to see real metrics'
+            )}
+          </p>
+        </div>
+        {isRealData && (
+          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+            <Database className="w-3 h-3 mr-1" />
+            {reportsCount} Reports Analyzed
+          </Badge>
+        )}
       </div>
 
       {/* Insights Grid */}
