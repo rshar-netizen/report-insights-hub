@@ -147,6 +147,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
   const { toast } = useToast();
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
+  const [fetchingAll, setFetchingAll] = useState(false);
 
   const getFileIcon = (fileName: string) => {
     if (fileName.endsWith('.pdf')) return <FileText className="w-4 h-4 text-destructive" />;
