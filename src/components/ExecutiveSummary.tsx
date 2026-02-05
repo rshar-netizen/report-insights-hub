@@ -337,59 +337,70 @@ export function ExecutiveSummary() {
           <div>
             <h2 className="text-xl font-bold text-foreground">Institution Metrics</h2>
             <p className="text-sm text-muted-foreground">
-              {useRealTimeData 
-                ? `Live data from FFIEC, FRED, and regulatory APIs${age ? ` • Updated ${age}` : ''}`
-                : 'Key performance indicators from regulatory filings'
-              }
+              {isRealData ? (
+                <>
+                  Data from ingested Call Reports
+                  {metricsReportingPeriod && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {metricsReportingPeriod}
+                    </Badge>
+                  )}
+                  {institutionName && (
+                    <span className="ml-2 text-xs">• {institutionName}</span>
+                  )}
+                </>
+              ) : (
+                'Demo data - Upload reports to see actual metrics'
+              )}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Database className={`w-4 h-4 ${!useRealTimeData ? 'text-foreground' : 'text-muted-foreground'}`} />
-              <span className={`text-sm ${!useRealTimeData ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>Demo</span>
-            </div>
-            <Switch
-              checked={useRealTimeData}
-              onCheckedChange={setUseRealTimeData}
-              aria-label="Toggle real-time data"
-            />
-            <div className="flex items-center gap-2">
-              <Wifi className={`w-4 h-4 ${useRealTimeData ? 'text-success' : 'text-muted-foreground'}`} />
-              <span className={`text-sm ${useRealTimeData ? 'text-success font-medium' : 'text-muted-foreground'}`}>Live</span>
-            </div>
-            {useRealTimeData && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="ml-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-              </Button>
+          <div className="flex items-center gap-2">
+            {isRealData ? (
+              <Badge variant="default" className="bg-success/10 text-success border-success/20">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Real Data
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                <Database className="w-3 h-3 mr-1" />
+                Demo Mode
+              </Badge>
             )}
           </div>
         </div>
-        {isLoading && useRealTimeData && (
+        
+        {isLoading && (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
-            <span>Fetching live data from regulatory sources...</span>
+            <span>Loading metrics from ingested reports...</span>
           </div>
         )}
-        {isError && useRealTimeData && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
-            <p className="text-sm text-destructive">Failed to fetch live data. Showing cached results.</p>
+        
+        {!isLoading && displayMetrics.length === 0 && (
+          <div className="bg-muted/50 border border-border rounded-lg p-8 text-center">
+            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">No metrics extracted from reports yet.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Upload a Call Report in the Data Ingestion tab to extract metrics.
+            </p>
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {displayMetrics.map((metric) => (
-            <BankMetricCard key={metric.id} metric={metric} isRealTime={useRealTimeData && !isLoading} />
-          ))}
-        </div>
+        
+        {!isLoading && displayMetrics.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayMetrics.map((metric) => (
+              <BankMetricCard key={metric.id} metric={metric} isRealTime={isRealData} />
+            ))}
+          </div>
+        )}
+        
+        {/* Show note about missing metrics if using real data but not all metrics present */}
+        {isRealData && displayMetrics.length > 0 && displayMetrics.length < 6 && (
+          <p className="text-xs text-muted-foreground mt-4 italic">
+            Note: Some metrics could not be extracted from the uploaded reports. 
+            Upload additional report types (UBPR, FRY-9C) for comprehensive coverage.
+          </p>
+        )}
       </div>
     </div>
   );
