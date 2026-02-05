@@ -308,6 +308,7 @@ export function ExecutiveSummary() {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         {getCategoryLabel(insight.category)}
                       </span>
+                      <ConfidenceBadge confidence={insight.confidence} />
                     </div>
                     {insight.metric && (
                       <span className="metric-value text-xl text-foreground">
