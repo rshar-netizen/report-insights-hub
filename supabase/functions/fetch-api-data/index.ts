@@ -413,17 +413,19 @@ async function fetchFfiecData(sourceId: string): Promise<FetchResult> {
     const scrapeData = await scrapeResponse.json();
     const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
     
-    // Check if we got error page content
-    const isErrorPage = markdown.includes('Error') || 
-                        markdown.includes('not found') || 
-                        markdown.includes('no data') ||
-                        markdown.length < 200;
+    // Check if we got error page content - look for specific error indicators
+    const isErrorPage = markdown.includes('invalid financial institution') || 
+                        markdown.includes('Invalid ID') ||
+                        markdown.includes('Error:') ||
+                        markdown.includes('No data found') ||
+                        markdown.includes('requested report query includes an invalid') ||
+                        (markdown.length < 500 && !markdown.includes('Call Report') && !markdown.includes('UBPR'));
     
     if (isErrorPage) {
       return {
         success: true,
         data: scrapeData,
-        markdown: `# ${description}\n\n**Note:** The FFIEC portal did not return report data. This may require direct portal access or different parameters.\n\nScraped content preview:\n${markdown.substring(0, 500)}`,
+        markdown: `# ${description}\n\n**Status:** Data not available via direct API.\n\n**Note:** The FFIEC portal requires authenticated access or specific report parameters. This source may need manual download from [FFIEC CDR](https://cdr.ffiec.gov).\n\n**Institution:** ${MIZUHO_IDENTIFIERS.institutionName} (RSSD: ${MIZUHO_IDENTIFIERS.rssdId})`,
         dataAvailable: false,
         metadata: { source: 'ffiec', url, isErrorPage: true }
       };
@@ -432,7 +434,7 @@ async function fetchFfiecData(sourceId: string): Promise<FetchResult> {
     return {
       success: true,
       data: scrapeData.data || {},
-      markdown: `# ${description}\n\n${markdown}`,
+      markdown: `# ${description}\n\n**Institution:** ${MIZUHO_IDENTIFIERS.institutionName}\n**RSSD ID:** ${MIZUHO_IDENTIFIERS.rssdId}\n\n${markdown}`,
       dataAvailable: true,
       metadata: { source: 'ffiec', url }
     };
