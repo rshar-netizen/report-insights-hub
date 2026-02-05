@@ -6,232 +6,521 @@ const corsHeaders = {
 interface FetchApiRequest {
   connectionId?: string;
   portal: 'ffiec' | 'fred' | 'sec' | 'fdic' | 'custom';
+  sourceId?: string; // Identifies specific data source like 'ffiec-call-report'
   baseUrl?: string;
   endpoint?: string;
   rssdId?: string;
+  certNumber?: string;
+  cik?: string;
   apiKey?: string;
   headers?: Record<string, string>;
   queryParams?: Record<string, string>;
 }
 
-// Portal configurations
-const portalConfigs: Record<string, { baseUrl: string; endpoints: Record<string, string> }> = {
-  ffiec: {
-    baseUrl: 'https://cdr.ffiec.gov/public',
-    endpoints: {
-      callReport: '/ManageFacsimiles.aspx',
-      ubpr: '/ManageFacsimiles.aspx',
-      nicSearch: '/NIC/NICSearchProxy.aspx',
-    }
-  },
-  fred: {
-    baseUrl: 'https://api.stlouisfed.org/fred',
-    endpoints: {
-      series: '/series/observations',
-      search: '/series/search',
-    }
-  },
-  sec: {
-    baseUrl: 'https://www.sec.gov/cgi-bin',
-    endpoints: {
-      edgar: '/browse-edgar',
-      filings: '/srch-ia',
-    }
-  },
-  fdic: {
-    baseUrl: 'https://banks.data.fdic.gov/api',
-    endpoints: {
-      institutions: '/institutions',
-      sod: '/sod',
-      financials: '/financials',
-    }
-  }
+interface FetchResult {
+  success: boolean;
+  data: unknown;
+  markdown?: string;
+  metadata?: unknown;
+  error?: string;
+  dataAvailable?: boolean;
+}
+
+// Mizuho Bank USA identifiers
+const MIZUHO_IDENTIFIERS = {
+  certNumber: '21843',
+  cik: '0001785149',
+  ein: '81-3006831',
+  rssdId: '623806',
+  institutionName: 'Mizuho Bank (USA)'
 };
 
+// Build proper URLs for each data source
+function buildSourceUrl(sourceId: string, portal: string): { url: string; description: string; requiresAuth: boolean } {
+  const rssd = MIZUHO_IDENTIFIERS.rssdId;
+  const cik = MIZUHO_IDENTIFIERS.cik;
+  
+  switch (sourceId) {
+    // FFIEC Sources - Use RSSD ID type which is correct for these reports
+    case 'ffiec-call-report':
+      return {
+        url: `https://cdr.ffiec.gov/Public/ManageFacsimiles.aspx?IdType=IDRSSD&ID=${rssd}&DS=Call`,
+        description: 'FFIEC Call Report',
+        requiresAuth: false
+      };
+    case 'ffiec-ubpr':
+      return {
+        url: `https://cdr.ffiec.gov/Public/ManageFacsimiles.aspx?IdType=IDRSSD&ID=${rssd}&DS=UBPR`,
+        description: 'FFIEC UBPR',
+        requiresAuth: false
+      };
+    case 'ffiec-fry9c':
+      // FRY-9C is for bank holding companies
+      return {
+        url: `https://www.ffiec.gov/npw/Institution/Profile/${rssd}`,
+        description: 'FFIEC Institution Profile',
+        requiresAuth: false
+      };
+    
+    // FDIC Sources  
+    case 'fdic-sod':
+      return {
+        url: `https://banks.data.fdic.gov/api/sod?filters=CERT:${cert}&fields=STNAME,SIMS_LATITUDE,SIMS_LONGITUDE,DEPSUMBR,BKCLASS,YEAR&limit=100&format=json`,
+        description: 'FDIC Summary of Deposits',
+        requiresAuth: false
+      };
+    case 'fdic-financials':
+      return {
+        url: `https://banks.data.fdic.gov/api/financials?filters=CERT:${cert}&fields=ASSET,DEP,NETINC,EQ,ROA,ROE,NIMY,YEAR,REPDTE&sort_by=REPDTE&sort_order=DESC&limit=20&format=json`,
+        description: 'FDIC Institution Financials',
+        requiresAuth: false
+      };
+    
+    // SEC Sources
+    case 'sec-10k':
+      return {
+        url: `https://data.sec.gov/submissions/CIK${cik}.json`,
+        description: 'SEC Filings (10-K)',
+        requiresAuth: false
+      };
+    case 'sec-10q':
+      return {
+        url: `https://data.sec.gov/submissions/CIK${cik}.json`,
+        description: 'SEC Filings (10-Q)',
+        requiresAuth: false
+      };
+    
+    // FRED Sources (require API key)
+    case 'fred-rates':
+      return {
+        url: 'https://api.stlouisfed.org/fred/series/observations',
+        description: 'Federal Reserve Interest Rates',
+        requiresAuth: true
+      };
+    case 'fred-economic':
+      return {
+        url: 'https://api.stlouisfed.org/fred/series/observations',
+        description: 'Economic Indicators',
+        requiresAuth: true
+      };
+    
+    default:
+      return {
+        url: '',
+        description: 'Unknown source',
+        requiresAuth: false
+      };
+  }
+}
+
+// Fetch from FDIC API (JSON)
+async function fetchFdicData(sourceId: string): Promise<FetchResult> {
+  const { url, description } = buildSourceUrl(sourceId, 'fdic');
+  
+  console.log(`Fetching FDIC data: ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        data: null,
+        error: `FDIC API returned ${response.status}`,
+        dataAvailable: false
+      };
+    }
+    
+    const data = await response.json();
+    
+    // Check if we got actual data
+    const hasData = data.data && data.data.length > 0;
+    
+    if (!hasData) {
+      return {
+        success: true,
+        data: data,
+        markdown: `# ${description}\n\nNo data found for Cert #${MIZUHO_IDENTIFIERS.certNumber}`,
+        dataAvailable: false,
+        metadata: { source: 'fdic', url }
+      };
+    }
+    
+    // Format the data as markdown
+    const records = data.data;
+    let markdown = `# ${description}\n\n**Institution:** ${MIZUHO_IDENTIFIERS.institutionName}\n**Cert Number:** ${MIZUHO_IDENTIFIERS.certNumber}\n\n`;
+    
+    if (sourceId === 'fdic-financials') {
+      markdown += `## Financial Data (Most Recent Periods)\n\n`;
+      markdown += `| Period | Total Assets | Deposits | Net Income | Equity | ROA | ROE | NIM |\n`;
+      markdown += `|--------|-------------|----------|------------|--------|-----|-----|-----|\n`;
+      
+      records.slice(0, 8).forEach((r: Record<string, unknown>) => {
+        const repDate = r.REPDTE ? String(r.REPDTE) : 'N/A';
+        markdown += `| ${repDate} | $${formatNumber(r.ASSET as number)}M | $${formatNumber(r.DEP as number)}M | $${formatNumber(r.NETINC as number)}K | $${formatNumber(r.EQ as number)}M | ${r.ROA || 'N/A'}% | ${r.ROE || 'N/A'}% | ${r.NIMY || 'N/A'}% |\n`;
+      });
+    } else if (sourceId === 'fdic-sod') {
+      markdown += `## Summary of Deposits by Branch\n\n`;
+      markdown += `| State | Deposits | Year |\n`;
+      markdown += `|-------|----------|------|\n`;
+      
+      records.slice(0, 20).forEach((r: Record<string, unknown>) => {
+        markdown += `| ${r.STNAME || 'N/A'} | $${formatNumber(r.DEPSUMBR as number)}K | ${r.YEAR || 'N/A'} |\n`;
+      });
+    }
+    
+    return {
+      success: true,
+      data: data,
+      markdown,
+      dataAvailable: true,
+      metadata: { source: 'fdic', url, recordCount: records.length }
+    };
+    
+  } catch (error) {
+    console.error('FDIC fetch error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'FDIC fetch failed',
+      dataAvailable: false
+    };
+  }
+}
+
+// Fetch from SEC API (JSON)
+async function fetchSecData(sourceId: string): Promise<FetchResult> {
+  const { url, description } = buildSourceUrl(sourceId, 'sec');
+  
+  console.log(`Fetching SEC data: ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      headers: { 
+        'Accept': 'application/json',
+        'User-Agent': 'Regulatory Intelligence Platform research@example.com'
+      }
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return {
+          success: true,
+          data: null,
+          markdown: `# ${description}\n\nNo SEC filings found for CIK ${MIZUHO_IDENTIFIERS.cik}. This may indicate the entity is not an SEC registrant or files under a different identifier.`,
+          dataAvailable: false,
+          metadata: { source: 'sec', url, status: 404 }
+        };
+      }
+      return {
+        success: false,
+        data: null,
+        error: `SEC API returned ${response.status}`,
+        dataAvailable: false
+      };
+    }
+    
+    const data = await response.json();
+    
+    // Extract filing information
+    const filings = data.filings?.recent;
+    const hasFilings = filings && filings.form && filings.form.length > 0;
+    
+    let markdown = `# ${description}\n\n**Company:** ${data.name || MIZUHO_IDENTIFIERS.institutionName}\n**CIK:** ${MIZUHO_IDENTIFIERS.cik}\n\n`;
+    
+    if (!hasFilings) {
+      markdown += `No recent filings found.`;
+      return {
+        success: true,
+        data: data,
+        markdown,
+        dataAvailable: false,
+        metadata: { source: 'sec', url }
+      };
+    }
+    
+    // Filter for relevant forms
+    const targetForm = sourceId === 'sec-10k' ? '10-K' : '10-Q';
+    const relevantFilings: { form: string; date: string; accession: string }[] = [];
+    
+    for (let i = 0; i < Math.min(filings.form.length, 100); i++) {
+      if (filings.form[i] === targetForm || filings.form[i].includes(targetForm)) {
+        relevantFilings.push({
+          form: filings.form[i],
+          date: filings.filingDate[i],
+          accession: filings.accessionNumber[i]
+        });
+      }
+    }
+    
+    if (relevantFilings.length === 0) {
+      markdown += `No ${targetForm} filings found in recent submissions.\n\n`;
+      markdown += `## Available Filing Types:\n`;
+      const uniqueForms = [...new Set(filings.form.slice(0, 20))];
+      uniqueForms.forEach((form: string) => {
+        markdown += `- ${form}\n`;
+      });
+    } else {
+      markdown += `## Recent ${targetForm} Filings\n\n`;
+      markdown += `| Form | Filing Date | Accession Number |\n`;
+      markdown += `|------|-------------|------------------|\n`;
+      
+      relevantFilings.slice(0, 10).forEach(f => {
+        markdown += `| ${f.form} | ${f.date} | ${f.accession} |\n`;
+      });
+    }
+    
+    return {
+      success: true,
+      data: data,
+      markdown,
+      dataAvailable: relevantFilings.length > 0,
+      metadata: { source: 'sec', url, filingCount: relevantFilings.length }
+    };
+    
+  } catch (error) {
+    console.error('SEC fetch error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'SEC fetch failed',
+      dataAvailable: false
+    };
+  }
+}
+
+// Fetch from FRED API (requires API key)
+async function fetchFredData(sourceId: string): Promise<FetchResult> {
+  const fredApiKey = Deno.env.get('FRED_API_KEY');
+  
+  if (!fredApiKey) {
+    return {
+      success: false,
+      data: null,
+      error: 'FRED_API_KEY not configured. Add the API key in Settings to fetch economic data.',
+      dataAvailable: false,
+      metadata: { source: 'fred', requiresApiKey: true }
+    };
+  }
+  
+  // Define series based on sourceId
+  const seriesMap: Record<string, { series: string[]; name: string }> = {
+    'fred-rates': {
+      series: ['FEDFUNDS', 'DGS10', 'DGS2', 'DGS30'],
+      name: 'Interest Rates'
+    },
+    'fred-economic': {
+      series: ['GDP', 'UNRATE', 'CPIAUCSL'],
+      name: 'Economic Indicators'
+    }
+  };
+  
+  const config = seriesMap[sourceId] || seriesMap['fred-rates'];
+  
+  let markdown = `# FRED ${config.name}\n\n`;
+  const allData: Record<string, unknown> = {};
+  
+  try {
+    for (const seriesId of config.series) {
+      const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${fredApiKey}&file_type=json&sort_order=desc&limit=5`;
+      
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        allData[seriesId] = data.observations || [];
+        
+        markdown += `## ${seriesId}\n\n`;
+        if (data.observations && data.observations.length > 0) {
+          markdown += `| Date | Value |\n|------|-------|\n`;
+          data.observations.slice(0, 5).forEach((obs: { date: string; value: string }) => {
+            markdown += `| ${obs.date} | ${obs.value} |\n`;
+          });
+        }
+        markdown += '\n';
+      }
+    }
+    
+    return {
+      success: true,
+      data: allData,
+      markdown,
+      dataAvailable: Object.keys(allData).length > 0,
+      metadata: { source: 'fred', series: config.series }
+    };
+    
+  } catch (error) {
+    console.error('FRED fetch error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'FRED fetch failed',
+      dataAvailable: false
+    };
+  }
+}
+
+// Fetch from FFIEC using Firecrawl (web scraping)
+async function fetchFfiecData(sourceId: string): Promise<FetchResult> {
+  const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
+  const { url, description } = buildSourceUrl(sourceId, 'ffiec');
+  
+  console.log(`Fetching FFIEC data: ${url}`);
+  
+  if (!firecrawlKey) {
+    return {
+      success: false,
+      data: null,
+      error: 'Firecrawl connector not configured for web scraping',
+      dataAvailable: false
+    };
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${firecrawlKey}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 3000,
+      }),
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!scrapeResponse.ok) {
+      const errorText = await scrapeResponse.text();
+      console.error(`Firecrawl error (${scrapeResponse.status}):`, errorText.substring(0, 200));
+      return {
+        success: false,
+        data: null,
+        error: `Scraping failed: ${scrapeResponse.status}`,
+        dataAvailable: false
+      };
+    }
+    
+    const scrapeData = await scrapeResponse.json();
+    const markdown = scrapeData.data?.markdown || scrapeData.markdown || '';
+    
+    // Check if we got error page content - look for specific error indicators
+    const isErrorPage = markdown.includes('invalid financial institution') || 
+                        markdown.includes('Invalid ID') ||
+                        markdown.includes('Error:') ||
+                        markdown.includes('No data found') ||
+                        markdown.includes('requested report query includes an invalid') ||
+                        (markdown.length < 500 && !markdown.includes('Call Report') && !markdown.includes('UBPR'));
+    
+    if (isErrorPage) {
+      return {
+        success: true,
+        data: scrapeData,
+        markdown: `# ${description}\n\n**Status:** Data not available via direct API.\n\n**Note:** The FFIEC portal requires authenticated access or specific report parameters. This source may need manual download from [FFIEC CDR](https://cdr.ffiec.gov).\n\n**Institution:** ${MIZUHO_IDENTIFIERS.institutionName} (RSSD: ${MIZUHO_IDENTIFIERS.rssdId})`,
+        dataAvailable: false,
+        metadata: { source: 'ffiec', url, isErrorPage: true }
+      };
+    }
+    
+    return {
+      success: true,
+      data: scrapeData.data || {},
+      markdown: `# ${description}\n\n**Institution:** ${MIZUHO_IDENTIFIERS.institutionName}\n**RSSD ID:** ${MIZUHO_IDENTIFIERS.rssdId}\n\n${markdown}`,
+      dataAvailable: true,
+      metadata: { source: 'ffiec', url }
+    };
+    
+  } catch (error) {
+    console.error('FFIEC fetch error:', error);
+    return {
+      success: false,
+      data: null,
+      error: error instanceof Error ? error.message : 'FFIEC fetch failed',
+      dataAvailable: false
+    };
+  }
+}
+
+// Helper function to format numbers
+function formatNumber(num: number | undefined): string {
+  if (num === undefined || num === null) return 'N/A';
+  if (typeof num !== 'number') return String(num);
+  return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+}
+
+// Main handler
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { portal, baseUrl, endpoint, rssdId, apiKey, headers, queryParams } = await req.json() as FetchApiRequest;
-
-    // Use Firecrawl for web scraping if configured
-    const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
+    const { portal, sourceId, endpoint } = await req.json() as FetchApiRequest;
     
-    let targetUrl: string;
-    let config = portalConfigs[portal];
-
-    if (portal === 'custom') {
-      if (!baseUrl) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Base URL required for custom API' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      targetUrl = endpoint ? `${baseUrl}${endpoint}` : baseUrl;
-    } else if (config) {
-      const endpointPath = endpoint || Object.values(config.endpoints)[0];
-      targetUrl = `${config.baseUrl}${endpointPath}`;
-    } else {
-      return new Response(
-        JSON.stringify({ success: false, error: `Unknown portal: ${portal}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Build query string
-    const params = new URLSearchParams(queryParams || {});
-    if (rssdId) params.set('IdRssd', rssdId);
-    if (portal === 'fred' && apiKey) params.set('api_key', apiKey);
+    console.log(`Fetch request - Portal: ${portal}, SourceId: ${sourceId || 'none'}`);
     
-    const fullUrl = params.toString() ? `${targetUrl}?${params}` : targetUrl;
+    let result: FetchResult;
     
-    console.log(`Fetching from ${portal}: ${fullUrl}`);
-
-    let result: { success: boolean; data: unknown; markdown?: string; metadata?: unknown };
-
-    // Use Firecrawl for scraping if available
-    if (firecrawlKey && (portal === 'ffiec' || portal === 'sec')) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
-
-        const scrapeResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${firecrawlKey}`,
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            url: fullUrl,
-            formats: ['markdown', 'extract'],
-            extract: {
-              schema: {
-                type: 'object',
-                properties: {
-                  institutionName: { type: 'string' },
-                  rssdId: { type: 'string' },
-                  reportingPeriod: { type: 'string' },
-                  metrics: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        name: { type: 'string' },
-                        value: { type: 'string' },
-                        period: { type: 'string' }
-                      }
-                    }
-                  },
-                  tables: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        title: { type: 'string' },
-                        data: { type: 'string' }
-                      }
-                    }
-                  }
-                }
-              },
-              prompt: 'Extract financial metrics, institution details, and any tabular data from this regulatory report page.'
-            },
-            onlyMainContent: true,
-            waitFor: 2000, // Reduced wait time
-          }),
-        });
-
-        clearTimeout(timeoutId);
-
-        // Check response status before parsing
-        if (!scrapeResponse.ok) {
-          const errorText = await scrapeResponse.text();
-          console.error(`Firecrawl error (${scrapeResponse.status}):`, errorText.substring(0, 200));
-          throw new Error(`Firecrawl returned ${scrapeResponse.status}`);
-        }
-
-        // Safely parse JSON
-        const responseText = await scrapeResponse.text();
-        let scrapeData;
-        try {
-          scrapeData = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Failed to parse Firecrawl response:', responseText.substring(0, 200));
-          throw new Error('Invalid JSON response from Firecrawl');
-        }
-
-        result = {
-          success: true,
-          data: scrapeData.data?.extract || scrapeData.extract || {},
-          markdown: scrapeData.data?.markdown || scrapeData.markdown,
-          metadata: scrapeData.data?.metadata || scrapeData.metadata
-        };
-      } catch (scrapeError) {
-        console.warn(`Firecrawl scrape failed for ${portal}, returning placeholder:`, scrapeError);
-        result = {
-          success: true,
-          data: { 
-            institutionName: 'Data temporarily unavailable',
-            reportingPeriod: 'Q4 2025',
-            note: 'Scraping service timeout - retry later'
-          },
-          markdown: '',
-          metadata: { error: 'timeout', portal }
-        };
-      }
-    } else {
-      // Direct API call for FRED, FDIC, or custom APIs
-      const fetchHeaders: Record<string, string> = {
-        'Accept': 'application/json',
-        ...headers,
-      };
-      
-      if (apiKey && portal !== 'fred') {
-        fetchHeaders['Authorization'] = `Bearer ${apiKey}`;
-      }
-
-      const apiResponse = await fetch(fullUrl, {
-        method: 'GET',
-        headers: fetchHeaders,
-      });
-
-      const contentType = apiResponse.headers.get('content-type') || '';
-      let responseData;
-      
-      if (contentType.includes('application/json')) {
-        responseData = await apiResponse.json();
+    // Route to appropriate fetcher based on portal/sourceId
+    if (sourceId) {
+      if (sourceId.startsWith('fdic-')) {
+        result = await fetchFdicData(sourceId);
+      } else if (sourceId.startsWith('sec-')) {
+        result = await fetchSecData(sourceId);
+      } else if (sourceId.startsWith('fred-')) {
+        result = await fetchFredData(sourceId);
+      } else if (sourceId.startsWith('ffiec-')) {
+        result = await fetchFfiecData(sourceId);
       } else {
-        responseData = await apiResponse.text();
+        result = {
+          success: false,
+          data: null,
+          error: `Unknown source: ${sourceId}`,
+          dataAvailable: false
+        };
       }
-
-      if (!apiResponse.ok) {
-        console.error('API error:', apiResponse.status, responseData);
-        return new Response(
-          JSON.stringify({ success: false, error: `API request failed: ${apiResponse.status}` }),
-          { status: apiResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    } else {
+      // Legacy portal-based routing
+      switch (portal) {
+        case 'fdic':
+          result = await fetchFdicData('fdic-financials');
+          break;
+        case 'sec':
+          result = await fetchSecData('sec-10k');
+          break;
+        case 'fred':
+          result = await fetchFredData('fred-rates');
+          break;
+        case 'ffiec':
+          result = await fetchFfiecData('ffiec-call-report');
+          break;
+        default:
+          result = {
+            success: false,
+            data: null,
+            error: `Unknown portal: ${portal}`,
+            dataAvailable: false
+          };
       }
-
-      result = {
-        success: true,
-        data: responseData,
-        metadata: {
-          status: apiResponse.status,
-          contentType,
-          url: fullUrl
-        }
-      };
     }
-
-    console.log(`Successfully fetched data from ${portal}`);
+    
+    console.log(`Fetch complete - Success: ${result.success}, DataAvailable: ${result.dataAvailable}`);
 
     return new Response(
       JSON.stringify({
         ...result,
         portal,
+        sourceId,
+        institution: MIZUHO_IDENTIFIERS,
         fetchedAt: new Date().toISOString()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -241,7 +530,7 @@ Deno.serve(async (req) => {
     console.error('Error in fetch-api-data:', error);
     const errorMessage = error instanceof Error ? error.message : 'Failed to fetch API data';
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
+      JSON.stringify({ success: false, error: errorMessage, dataAvailable: false }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

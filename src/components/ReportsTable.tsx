@@ -275,15 +275,24 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
         toast({ title: 'Fetching data...', description: `Pulling from ${SOURCE_LABELS[source.source].label}` });
       }
       
+      // Use sourceId for proper routing
       const { data, error } = await supabase.functions.invoke('fetch-api-data', {
         body: {
           portal: source.source,
+          sourceId: source.id, // Pass the specific source ID
           endpoint: source.endpoint,
-          rssdId: source.source !== 'fred' ? rssdId : undefined,
         }
       });
 
       if (error) throw error;
+
+      // Check if data was actually available
+      const dataAvailable = data?.dataAvailable !== false;
+      const hasValidContent = data?.markdown && data.markdown.length > 100;
+      
+      // Determine status based on data availability
+      const reportStatus = dataAvailable && hasValidContent ? 'pending' : 'error';
+      const errorMessage = !dataAvailable ? (data?.error || 'No data available for this source') : null;
 
       // Create a report record from the fetched data
       const { data: report, error: insertError } = await supabase
@@ -294,10 +303,11 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           source: source.source,
           source_url: data?.metadata?.url || `${SOURCE_LABELS[source.source].label}${source.endpoint}`,
           rssd_id: source.source !== 'fred' ? rssdId : null,
-          institution_name: source.source !== 'fred' ? 'Mizuho Americas' : null,
+          institution_name: data?.institution?.institutionName || 'Mizuho Bank (USA)',
           reporting_period: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          raw_content: data?.markdown || JSON.stringify(data?.data),
-          status: 'pending'
+          raw_content: data?.markdown || JSON.stringify(data?.data) || '',
+          status: reportStatus,
+          error_message: errorMessage
         })
         .select()
         .single();
@@ -305,10 +315,18 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
       if (insertError) throw insertError;
 
       if (!skipRefresh) {
-        toast({ 
-          title: 'Data fetched successfully', 
-          description: `${source.name} is ready for analysis` 
-        });
+        if (dataAvailable && hasValidContent) {
+          toast({ 
+            title: 'Data fetched successfully', 
+            description: `${source.name} is ready for analysis` 
+          });
+        } else {
+          toast({ 
+            title: 'Fetch completed with issues', 
+            description: errorMessage || 'Limited or no data available',
+            variant: 'destructive'
+          });
+        }
         window.location.reload();
       }
       
