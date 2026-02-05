@@ -372,19 +372,12 @@ export function ExecutiveSummary() {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {isRealData ? (
-              <Badge variant="default" className="bg-success/10 text-success border-success/20">
-                <CheckCircle2 className="w-3 h-3 mr-1" />
-                Real Data
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-muted-foreground">
-                <Database className="w-3 h-3 mr-1" />
-                Demo Mode
-              </Badge>
-            )}
-          </div>
+          {isRealData && (
+            <Badge variant="default" className="bg-success/10 text-success border-success/20">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Real Data
+            </Badge>
+          )}
         </div>
         
         {isLoading && (
