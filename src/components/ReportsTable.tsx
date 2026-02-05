@@ -382,10 +382,11 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
     );
   }
 
-  const analyzedCount = reports.filter(r => r.status === 'analyzed').length;
-  const pendingCount = reports.filter(r => r.status === 'pending').length;
-  const realTimeCount = reports.filter(r => r.source !== 'upload').length;
+  const analyzedCount = deduplicatedReports.filter(r => r.status === 'analyzed').length;
+  const pendingCount = deduplicatedReports.filter(r => r.status === 'pending').length;
+  const realTimeCount = deduplicatedReports.filter(r => r.source !== 'upload').length;
   const availableNotIngested = AVAILABLE_DATA_SOURCES.filter(s => !isSourceIngested(s.id)).length;
+  const duplicatesRemoved = reports.length - deduplicatedReports.length;
 
   return (
     <Card>
@@ -394,7 +395,12 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           <div>
             <CardTitle className="text-lg">All Reports</CardTitle>
             <CardDescription className="mt-1">
-              {reports.length} ingested • {availableNotIngested} available from APIs • {analyzedCount} analyzed
+              {deduplicatedReports.length} unique reports • {availableNotIngested} available from APIs • {analyzedCount} analyzed
+              {duplicatesRemoved > 0 && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  ({duplicatesRemoved} older versions hidden)
+                </span>
+              )}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
