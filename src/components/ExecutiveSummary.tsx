@@ -357,7 +357,7 @@ export function ExecutiveSummary() {
             <p className="text-sm text-muted-foreground">
               {isRealData ? (
                 <>
-                  Data from ingested Call Reports
+                  Data from ingested regulatory reports
                   {metricsReportingPeriod && (
                     <Badge variant="outline" className="ml-2 text-xs">
                       {metricsReportingPeriod}
@@ -368,7 +368,7 @@ export function ExecutiveSummary() {
                   )}
                 </>
               ) : (
-                'Demo data - Upload reports to see actual metrics'
+                'No metrics available — Upload reports to extract data'
               )}
             </p>
           </div>
