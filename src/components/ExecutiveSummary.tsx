@@ -111,17 +111,17 @@ export function ExecutiveSummary() {
   // Determine which data to display
   const isLoading = metricsLoading || insightsLoading;
   
-  // Use real ingested data if available, otherwise fall back to static demo data
+  // ONLY show real data - no fallback to demo data
   const displayMetrics = hasRealMetrics && realMetrics.length > 0 
     ? realMetrics 
-    : mizuhoMetrics;
+    : []; // Empty array - no demo data
   
   const displayInsights = hasRealInsights && realInsights.length > 0 
     ? realInsights 
-    : executiveInsights;
+    : []; // Empty array - no demo data
   
-  // Reporting period from ingested data
-  const reportPeriod = metricsReportingPeriod || insightsReportingPeriod || 'Demo Data';
+  // Reporting period from ingested data only
+  const reportPeriod = metricsReportingPeriod || insightsReportingPeriod || null;
   const isRealData = hasRealMetrics || hasRealInsights;
 
   const getCategoryIcon = (category: string) => {
