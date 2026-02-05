@@ -11,6 +11,7 @@ interface ExtractedMetrics {
   tier1_leverage_ratio?: number;
   net_interest_margin?: number;
   roa?: number;
+  return_on_average_assets?: number;
   roe?: number;
   efficiency_ratio?: number;
   npl_ratio?: number;
