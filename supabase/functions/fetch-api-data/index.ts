@@ -38,6 +38,7 @@ const MIZUHO_IDENTIFIERS = {
 // Build proper URLs for each data source
 function buildSourceUrl(sourceId: string, portal: string): { url: string; description: string; requiresAuth: boolean } {
   const rssd = MIZUHO_IDENTIFIERS.rssdId;
+  const cert = MIZUHO_IDENTIFIERS.certNumber;
   const cik = MIZUHO_IDENTIFIERS.cik;
   
   switch (sourceId) {
