@@ -260,87 +260,89 @@ export function ExecutiveSummary() {
             </div>
           )}
 
-        {/* Attention & Risks */}
-        {attentionItems.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <AlertTriangle className="w-4 h-4 text-warning" />
-              <h3 className="text-sm font-semibold text-warning uppercase tracking-wide">Requires Attention</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {attentionItems.map((insight) => (
-                <div
-                  key={insight.id}
-                  className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {getCategoryIcon(insight.category)}
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {getCategoryLabel(insight.category)}
-                      </span>
-                      <ConfidenceBadge confidence={insight.confidence} />
+          {/* Attention & Risks */}
+          {attentionItems.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="w-4 h-4 text-warning" />
+                <h3 className="text-sm font-semibold text-warning uppercase tracking-wide">Requires Attention</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {attentionItems.map((insight) => (
+                  <div
+                    key={insight.id}
+                    className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {getCategoryIcon(insight.category)}
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {getCategoryLabel(insight.category)}
+                        </span>
+                        <ConfidenceBadge confidence={insight.confidence} />
+                      </div>
+                      {insight.metric && (
+                        <span className="metric-value text-xl text-foreground">
+                          {insight.metric}
+                        </span>
+                      )}
                     </div>
-                    {insight.metric && (
-                      <span className="metric-value text-xl text-foreground">
-                        {insight.metric}
-                      </span>
-                    )}
+                    <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                      {insight.summary}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
+                      <span>•</span>
+                      <span>{insight.reportType}</span>
+                    </div>
                   </div>
-                  <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                    {insight.summary}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                    <span>•</span>
-                    <span>{insight.reportType}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Opportunities */}
-        {opportunities.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Lightbulb className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Opportunities</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {opportunities.map((insight) => (
-                <div
-                  key={insight.id}
-                  className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {getCategoryIcon(insight.category)}
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {getCategoryLabel(insight.category)}
-                      </span>
-                      <ConfidenceBadge confidence={insight.confidence} />
+          {/* Opportunities */}
+          {opportunities.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Lightbulb className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Opportunities</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {opportunities.map((insight) => (
+                  <div
+                    key={insight.id}
+                    className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {getCategoryIcon(insight.category)}
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {getCategoryLabel(insight.category)}
+                        </span>
+                        <ConfidenceBadge confidence={insight.confidence} />
+                      </div>
+                      {insight.metric && (
+                        <span className="metric-value text-xl text-foreground">
+                          {insight.metric}
+                        </span>
+                      )}
                     </div>
-                    {insight.metric && (
-                      <span className="metric-value text-xl text-foreground">
-                        {insight.metric}
-                      </span>
-                    )}
+                    <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                      {insight.summary}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
+                      <span>•</span>
+                      <span>{insight.reportType}</span>
+                    </div>
                   </div>
-                  <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                    {insight.summary}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                    <span>•</span>
-                    <span>{insight.reportType}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+          )}
         </div>
       )}
 
