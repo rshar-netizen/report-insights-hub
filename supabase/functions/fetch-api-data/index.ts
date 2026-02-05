@@ -37,28 +37,28 @@ const MIZUHO_IDENTIFIERS = {
 
 // Build proper URLs for each data source
 function buildSourceUrl(sourceId: string, portal: string): { url: string; description: string; requiresAuth: boolean } {
-  const cert = MIZUHO_IDENTIFIERS.certNumber;
+  const rssd = MIZUHO_IDENTIFIERS.rssdId;
   const cik = MIZUHO_IDENTIFIERS.cik;
   
   switch (sourceId) {
-    // FFIEC Sources
+    // FFIEC Sources - Use RSSD ID type which is correct for these reports
     case 'ffiec-call-report':
       return {
-        url: `https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=call&idType=CERT&id=${cert}`,
+        url: `https://cdr.ffiec.gov/Public/ManageFacsimiles.aspx?IdType=IDRSSD&ID=${rssd}&DS=Call`,
         description: 'FFIEC Call Report',
         requiresAuth: false
       };
     case 'ffiec-ubpr':
       return {
-        url: `https://cdr.ffiec.gov/Public/ViewFacsimileDirect.aspx?ds=ubpr&idType=CERT&id=${cert}`,
+        url: `https://cdr.ffiec.gov/Public/ManageFacsimiles.aspx?IdType=IDRSSD&ID=${rssd}&DS=UBPR`,
         description: 'FFIEC UBPR',
         requiresAuth: false
       };
     case 'ffiec-fry9c':
-      // FRY-9C is for bank holding companies - Mizuho Americas Holdings uses different identifier
+      // FRY-9C is for bank holding companies
       return {
-        url: `https://www.ffiec.gov/npw/Institution/Profile/${MIZUHO_IDENTIFIERS.rssdId}`,
-        description: 'FFIEC FRY-9C (Institution Profile)',
+        url: `https://www.ffiec.gov/npw/Institution/Profile/${rssd}`,
+        description: 'FFIEC Institution Profile',
         requiresAuth: false
       };
     
