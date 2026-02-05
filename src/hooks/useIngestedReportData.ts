@@ -186,6 +186,13 @@ export function useRealBankMetrics() {
   } = useAllReportMetrics();
   
   const { data: reports } = useIngestedReports();
+  
+  // Get the latest report for institution name and period
+  const latestReport = reports?.find(r => 
+    r.insights.some(i => i.insight_type === 'metric_extraction' && i.metrics)
+  );
+  const institutionName = latestReport?.institution_name || null;
+  const reportingPeriod = latestReport?.reporting_period || extractPeriodFromFilename(latestReport?.name || '') || null;
 
   // Build metrics from extracted data with proper source attribution
   const realMetrics: BankMetric[] = [];
