@@ -143,10 +143,43 @@ interface ReportsTableProps {
   rssdId?: string;
 }
 
+// Deduplicate reports: keep only the latest version for each unique report
+function deduplicateReports(reports: IngestedReport[]): (IngestedReport & { hasOlderVersion?: boolean; previousDate?: string })[] {
+  const reportMap = new Map<string, IngestedReport[]>();
+  
+  // Group reports by unique key (name + source + report_type + reporting_period)
+  reports.forEach(report => {
+    const key = `${report.name}-${report.source}-${report.report_type}-${report.reporting_period || ''}`;
+    const existing = reportMap.get(key) || [];
+    existing.push(report);
+    reportMap.set(key, existing);
+  });
+  
+  // For each group, keep only the latest version
+  const deduplicated: (IngestedReport & { hasOlderVersion?: boolean; previousDate?: string })[] = [];
+  
+  reportMap.forEach((versions) => {
+    // Sort by created_at descending (newest first)
+    versions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const latest = versions[0];
+    deduplicated.push({
+      ...latest,
+      hasOlderVersion: versions.length > 1,
+      previousDate: versions.length > 1 ? versions[1].created_at : undefined
+    });
+  });
+  
+  // Sort by created_at descending
+  return deduplicated.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
+
 export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' }: ReportsTableProps) {
   const { toast } = useToast();
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
+  
+  // Deduplicate reports to show only the latest version
+  const deduplicatedReports = deduplicateReports(reports);
   const [fetchingAll, setFetchingAll] = useState(false);
 
   const getFileIcon = (fileName: string) => {
