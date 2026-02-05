@@ -16,6 +16,7 @@ import {
 import { executiveInsights, mizuhoMetrics, BankMetric, ExecutiveInsight } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
+import { ConfidenceBadge } from './ConfidenceBadge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
