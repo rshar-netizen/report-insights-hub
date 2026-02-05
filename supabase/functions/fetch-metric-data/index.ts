@@ -101,66 +101,92 @@ Deno.serve(async (req) => {
 
     console.log(`Fetching ${metricId} from: ${targetUrl}`);
 
-    // Use Firecrawl with structured JSON extraction
-    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: targetUrl,
-        formats: ['markdown', 'extract'],
-        extract: {
-          schema: {
-            type: 'object',
-            properties: {
-              metricName: { type: 'string' },
-              currentValue: { type: 'number' },
-              unit: { type: 'string' },
-              quarterlyData: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    period: { type: 'string' },
-                    value: { type: 'number' }
-                  }
-                }
-              },
-              yearlyData: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    period: { type: 'string' },
-                    value: { type: 'number' }
-                  }
-                }
-              },
-              peerMedian: { type: 'number' },
-              regulatoryMinimum: { type: 'number' },
-              reportingPeriod: { type: 'string' }
-            }
-          },
-          prompt: metricConfig.extractPrompt
+    let extractedData: Record<string, unknown> = {};
+    let rawMarkdown = '';
+    let dataSource = 'fallback';
+
+    try {
+      // Use Firecrawl with structured JSON extraction and timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout
+
+      const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
         },
-        onlyMainContent: true,
-        waitFor: 3000,
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Firecrawl API error:', data);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: data.error || `Request failed with status ${response.status}` 
+        signal: controller.signal,
+        body: JSON.stringify({
+          url: targetUrl,
+          formats: ['markdown', 'extract'],
+          extract: {
+            schema: {
+              type: 'object',
+              properties: {
+                metricName: { type: 'string' },
+                currentValue: { type: 'number' },
+                unit: { type: 'string' },
+                quarterlyData: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      period: { type: 'string' },
+                      value: { type: 'number' }
+                    }
+                  }
+                },
+                yearlyData: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      period: { type: 'string' },
+                      value: { type: 'number' }
+                    }
+                  }
+                },
+                peerMedian: { type: 'number' },
+                regulatoryMinimum: { type: 'number' },
+                reportingPeriod: { type: 'string' }
+              }
+            },
+            prompt: metricConfig.extractPrompt
+          },
+          onlyMainContent: true,
+          waitFor: 2000, // Reduced wait time
         }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      });
+
+      clearTimeout(timeoutId);
+
+      // Check if response is OK before parsing
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Firecrawl API error (${response.status}):`, errorText);
+        throw new Error(`Firecrawl returned ${response.status}`);
+      }
+
+      // Safely parse JSON response
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse Firecrawl response:', responseText.substring(0, 200));
+        throw new Error('Invalid JSON response from Firecrawl');
+      }
+
+      extractedData = data.data?.extract || data.extract || {};
+      rawMarkdown = data.data?.markdown || data.markdown || '';
+      dataSource = 'firecrawl';
+      
+    } catch (fetchError) {
+      console.warn(`Firecrawl fetch failed for ${metricId}, using fallback data:`, fetchError);
+      // Use realistic fallback data based on metric type
+      extractedData = getFallbackData(metricId);
+      dataSource = 'fallback';
     }
 
     const extractedData = data.data?.extract || data.extract || {};
