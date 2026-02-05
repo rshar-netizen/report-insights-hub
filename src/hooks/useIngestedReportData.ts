@@ -409,6 +409,8 @@ export function useRealBankMetrics() {
 
   return {
     metrics: realMetrics,
+    reportingPeriod,
+    institutionName,
     isLoading,
     error,
     hasData,
