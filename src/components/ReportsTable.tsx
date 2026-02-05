@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { format } from 'date-fns';
 import { 
   FileText, 
@@ -10,11 +11,15 @@ import {
   Sparkles,
   ExternalLink,
   Database,
-  Upload
+  Upload,
+  Download,
+  Globe,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -24,6 +29,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { IngestedReport } from '@/lib/api/dataIngestion';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const REPORT_TYPES: Record<string, string> = {
   call_report: 'Call Report (FFIEC)',
@@ -32,6 +39,7 @@ const REPORT_TYPES: Record<string, string> = {
   summary_of_deposits: 'Summary of Deposits',
   sec_filing: 'SEC Filing',
   custom: 'Custom Report',
+  economic_indicator: 'Economic Indicator',
 };
 
 const SOURCE_LABELS: Record<string, { label: string; icon: typeof Database }> = {
@@ -43,13 +51,103 @@ const SOURCE_LABELS: Record<string, { label: string; icon: typeof Database }> = 
   custom: { label: 'Custom API', icon: ExternalLink },
 };
 
+// Available API data sources that can be fetched
+const AVAILABLE_DATA_SOURCES = [
+  {
+    id: 'ffiec-call-report',
+    name: 'Call Report (FFIEC 031/041)',
+    report_type: 'call_report',
+    source: 'ffiec',
+    description: 'Quarterly Reports of Condition and Income',
+    metrics: ['Tier 1 Capital', 'CET1', 'NIM', 'NPL Ratio', 'Efficiency Ratio'],
+    endpoint: '/ManageFacsimiles.aspx',
+  },
+  {
+    id: 'ffiec-ubpr',
+    name: 'Uniform Bank Performance Report',
+    report_type: 'ubpr',
+    source: 'ffiec',
+    description: 'Comparative analysis with peer groups',
+    metrics: ['ROA', 'ROE', 'Cost of Funds', 'Loan-to-Deposit Ratio'],
+    endpoint: '/ManageFacsimiles.aspx',
+  },
+  {
+    id: 'ffiec-fry9c',
+    name: 'FRY-9C Consolidated Report',
+    report_type: 'fr_y9c',
+    source: 'ffiec',
+    description: 'Bank holding company financial statements',
+    metrics: ['ACL Coverage', 'Capital Adequacy', 'Asset Quality'],
+    endpoint: '/ManageFacsimiles.aspx',
+  },
+  {
+    id: 'fdic-sod',
+    name: 'Summary of Deposits',
+    report_type: 'summary_of_deposits',
+    source: 'fdic',
+    description: 'Annual branch-level deposit data',
+    metrics: ['Total Deposits', 'Market Share', 'Branch Count'],
+    endpoint: '/sod',
+  },
+  {
+    id: 'fdic-financials',
+    name: 'FDIC Institution Financials',
+    report_type: 'custom',
+    source: 'fdic',
+    description: 'Quarterly financial data from FDIC BankFind',
+    metrics: ['Total Assets', 'Net Income', 'Equity Capital'],
+    endpoint: '/financials',
+  },
+  {
+    id: 'sec-10k',
+    name: 'SEC 10-K Annual Filing',
+    report_type: 'sec_filing',
+    source: 'sec',
+    description: 'Annual comprehensive report',
+    metrics: ['Revenue', 'Net Income', 'Risk Factors'],
+    endpoint: '/browse-edgar',
+  },
+  {
+    id: 'sec-10q',
+    name: 'SEC 10-Q Quarterly Filing',
+    report_type: 'sec_filing',
+    source: 'sec',
+    description: 'Quarterly financial report',
+    metrics: ['Quarterly Revenue', 'Operating Income'],
+    endpoint: '/browse-edgar',
+  },
+  {
+    id: 'fred-rates',
+    name: 'Federal Reserve Interest Rates',
+    report_type: 'economic_indicator',
+    source: 'fred',
+    description: 'Fed Funds Rate, Treasury Yields',
+    metrics: ['Fed Funds Rate', '10Y Treasury', '2Y Treasury'],
+    endpoint: '/series/observations',
+  },
+  {
+    id: 'fred-economic',
+    name: 'Economic Indicators',
+    report_type: 'economic_indicator',
+    source: 'fred',
+    description: 'GDP, Unemployment, Inflation data',
+    metrics: ['GDP', 'Unemployment Rate', 'CPI'],
+    endpoint: '/series/observations',
+  },
+];
+
 interface ReportsTableProps {
   reports: IngestedReport[];
   isLoading: boolean;
   onAnalyze: (report: IngestedReport) => void;
+  rssdId?: string;
 }
 
-export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProps) {
+export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' }: ReportsTableProps) {
+  const { toast } = useToast();
+  const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
+
   const getFileIcon = (fileName: string) => {
     if (fileName.endsWith('.pdf')) return <FileText className="w-4 h-4 text-destructive" />;
     if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) return <FileSpreadsheet className="w-4 h-4 text-primary" />;
@@ -124,6 +222,75 @@ export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProp
     }
   };
 
+  // Check if a data source has been ingested
+  const isSourceIngested = (sourceId: string) => {
+    const source = AVAILABLE_DATA_SOURCES.find(s => s.id === sourceId);
+    if (!source) return false;
+    return reports.some(r => 
+      r.source === source.source && 
+      r.report_type === source.report_type
+    );
+  };
+
+  // Fetch data from an API source
+  const fetchFromSource = async (source: typeof AVAILABLE_DATA_SOURCES[0]) => {
+    setFetchingIds(prev => new Set(prev).add(source.id));
+    
+    try {
+      toast({ title: 'Fetching data...', description: `Pulling from ${SOURCE_LABELS[source.source].label}` });
+      
+      const { data, error } = await supabase.functions.invoke('fetch-api-data', {
+        body: {
+          portal: source.source,
+          endpoint: source.endpoint,
+          rssdId: source.source !== 'fred' ? rssdId : undefined,
+        }
+      });
+
+      if (error) throw error;
+
+      // Create a report record from the fetched data
+      const { data: report, error: insertError } = await supabase
+        .from('ingested_reports')
+        .insert({
+          name: `${source.name} - ${new Date().toLocaleDateString()}`,
+          report_type: source.report_type,
+          source: source.source,
+          source_url: data?.metadata?.url || `${SOURCE_LABELS[source.source].label}${source.endpoint}`,
+          rssd_id: source.source !== 'fred' ? rssdId : null,
+          institution_name: source.source !== 'fred' ? 'Mizuho Americas' : null,
+          reporting_period: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          raw_content: data?.markdown || JSON.stringify(data?.data),
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      toast({ 
+        title: 'Data fetched successfully', 
+        description: `${source.name} is ready for analysis` 
+      });
+
+      // Trigger page refresh to show new report
+      window.location.reload();
+    } catch (error) {
+      console.error('Fetch error:', error);
+      toast({ 
+        title: 'Fetch failed', 
+        description: error instanceof Error ? error.message : 'Failed to fetch data',
+        variant: 'destructive'
+      });
+    } finally {
+      setFetchingIds(prev => {
+        const next = new Set(prev);
+        next.delete(source.id);
+        return next;
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -139,28 +306,10 @@ export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProp
     );
   }
 
-  if (reports.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">All Reports</CardTitle>
-          <CardDescription>
-            No reports ingested yet. Upload a report or connect to an API to get started.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No reports available</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const analyzedCount = reports.filter(r => r.status === 'analyzed').length;
   const pendingCount = reports.filter(r => r.status === 'pending').length;
   const realTimeCount = reports.filter(r => r.source !== 'upload').length;
+  const availableNotIngested = AVAILABLE_DATA_SOURCES.filter(s => !isSourceIngested(s.id)).length;
 
   return (
     <Card>
@@ -169,97 +318,209 @@ export function ReportsTable({ reports, isLoading, onAnalyze }: ReportsTableProp
           <div>
             <CardTitle className="text-lg">All Reports</CardTitle>
             <CardDescription className="mt-1">
-              {reports.length} total • {analyzedCount} analyzed • {pendingCount} pending • {realTimeCount} from live sources
+              {reports.length} ingested • {availableNotIngested} available from APIs • {analyzedCount} analyzed
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
               <Database className="w-3 h-3 mr-1" />
-              {realTimeCount} Real-time
+              {realTimeCount} Live
             </Badge>
             <Badge variant="outline" className="text-xs">
-              <Upload className="w-3 h-3 mr-1" />
-              {reports.length - realTimeCount} Uploaded
+              <Globe className="w-3 h-3 mr-1" />
+              {AVAILABLE_DATA_SOURCES.length} Sources
             </Badge>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[280px]">Report Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Institution</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Ingested</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {reports.map((report) => (
-                <TableRow key={report.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getFileIcon(report.name)}
-                      <span className="font-medium truncate max-w-[200px]" title={report.name}>
-                        {report.name}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">
-                      {REPORT_TYPES[report.report_type] || report.report_type}
-                    </span>
-                  </TableCell>
-                  <TableCell>{getSourceBadge(report.source)}</TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      {report.institution_name || '—'}
-                      {report.rssd_id && (
-                        <span className="block text-xs text-muted-foreground">
-                          RSSD: {report.rssd_id}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm">{report.reporting_period || '—'}</span>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-sm text-muted-foreground">
-                      {formatDate(report.created_at)}
-                    </span>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(report.status)}</TableCell>
-                  <TableCell className="text-right">
-                    {report.status === 'pending' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onAnalyze(report)}
-                      >
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Analyze
-                      </Button>
-                    )}
-                    {report.status === 'error' && report.error_message && (
-                      <span 
-                        className="text-xs text-destructive cursor-help"
-                        title={report.error_message}
-                      >
-                        View Error
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ingested' | 'available')}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="ingested" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Ingested Reports ({reports.length})
+            </TabsTrigger>
+            <TabsTrigger value="available" className="flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Available API Sources ({AVAILABLE_DATA_SOURCES.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ingested">
+            {reports.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-md">
+                <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No reports ingested yet</p>
+                <p className="text-sm mt-1">Upload a report or fetch from available API sources</p>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[280px]">Report Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Institution</TableHead>
+                      <TableHead>Period</TableHead>
+                      <TableHead>Ingested</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reports.map((report) => (
+                      <TableRow key={report.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getFileIcon(report.name)}
+                            <span className="font-medium truncate max-w-[200px]" title={report.name}>
+                              {report.name}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">
+                            {REPORT_TYPES[report.report_type] || report.report_type}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getSourceBadge(report.source)}</TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {report.institution_name || '—'}
+                            {report.rssd_id && (
+                              <span className="block text-xs text-muted-foreground">
+                                RSSD: {report.rssd_id}
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{report.reporting_period || '—'}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(report.created_at)}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getStatusBadge(report.status)}</TableCell>
+                        <TableCell className="text-right">
+                          {report.status === 'pending' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onAnalyze(report)}
+                            >
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Analyze
+                            </Button>
+                          )}
+                          {report.status === 'error' && report.error_message && (
+                            <span 
+                              className="text-xs text-destructive cursor-help"
+                              title={report.error_message}
+                            >
+                              View Error
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="available">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[280px]">Data Source</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Portal</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Key Metrics</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {AVAILABLE_DATA_SOURCES.map((source) => {
+                    const ingested = isSourceIngested(source.id);
+                    const fetching = fetchingIds.has(source.id);
+                    
+                    return (
+                      <TableRow key={source.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Database className="w-4 h-4 text-primary" />
+                            <span className="font-medium">{source.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">
+                            {REPORT_TYPES[source.report_type] || source.report_type}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getSourceBadge(source.source)}</TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {source.description}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {source.metrics.slice(0, 3).map((metric, i) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">
+                                {metric}
+                              </Badge>
+                            ))}
+                            {source.metrics.length > 3 && (
+                              <Badge variant="outline" className="text-[10px]">
+                                +{source.metrics.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {ingested ? (
+                            <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Ingested
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Available
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant={ingested ? "ghost" : "outline"}
+                            size="sm"
+                            onClick={() => fetchFromSource(source)}
+                            disabled={fetching}
+                          >
+                            {fetching ? (
+                              <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Fetching...</>
+                            ) : ingested ? (
+                              <><RefreshCw className="w-3 h-3 mr-1" />Refresh</>
+                            ) : (
+                              <><Download className="w-3 h-3 mr-1" />Fetch</>
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
