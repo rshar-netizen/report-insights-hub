@@ -16,6 +16,7 @@ import {
 import { executiveInsights, mizuhoMetrics, BankMetric, ExecutiveInsight } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
+import { ConfidenceBadge } from './ConfidenceBadge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -223,6 +224,7 @@ export function ExecutiveSummary() {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         {getCategoryLabel(insight.category)}
                       </span>
+                      <ConfidenceBadge confidence={insight.confidence} />
                     </div>
                     {insight.metric && (
                       <span className="metric-value text-xl text-foreground">
@@ -264,6 +266,7 @@ export function ExecutiveSummary() {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         {getCategoryLabel(insight.category)}
                       </span>
+                      <ConfidenceBadge confidence={insight.confidence} />
                     </div>
                     {insight.metric && (
                       <span className="metric-value text-xl text-foreground">
@@ -305,6 +308,7 @@ export function ExecutiveSummary() {
                       <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         {getCategoryLabel(insight.category)}
                       </span>
+                      <ConfidenceBadge confidence={insight.confidence} />
                     </div>
                     {insight.metric && (
                       <span className="metric-value text-xl text-foreground">
