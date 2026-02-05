@@ -512,9 +512,7 @@ export function useRealExecutiveInsights() {
         id: `real-insight-${index}`,
         category: mapCategory(insight.category, insight.insight_type),
         title: insight.title,
-        summary: insight.content.length > 200 
-          ? insight.content.substring(0, 200) + '...' 
-          : insight.content,
+        summary: insight.content, // Show full content without truncation
         metric: metricMatch ? metricMatch[0] : undefined,
         source: latestReport.source === 'upload' ? 'Call Report' : latestReport.source.toUpperCase(),
         reportType: `${latestReport.report_type} (${reportingPeriod || 'Latest'})`
