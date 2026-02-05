@@ -432,7 +432,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           <TabsList className="mb-4">
             <TabsTrigger value="ingested" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              Ingested Reports ({reports.length})
+              Ingested Reports ({deduplicatedReports.length})
             </TabsTrigger>
             <TabsTrigger value="available" className="flex items-center gap-2">
               <Globe className="w-4 h-4" />
