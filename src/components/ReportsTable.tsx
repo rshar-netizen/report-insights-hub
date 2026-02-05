@@ -147,6 +147,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
   const { toast } = useToast();
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
+  const [fetchingAll, setFetchingAll] = useState(false);
 
   const getFileIcon = (fileName: string) => {
     if (fileName.endsWith('.pdf')) return <FileText className="w-4 h-4 text-destructive" />;
@@ -233,11 +234,13 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
   };
 
   // Fetch data from an API source
-  const fetchFromSource = async (source: typeof AVAILABLE_DATA_SOURCES[0]) => {
+  const fetchFromSource = async (source: typeof AVAILABLE_DATA_SOURCES[0], skipRefresh = false): Promise<string | null> => {
     setFetchingIds(prev => new Set(prev).add(source.id));
     
     try {
-      toast({ title: 'Fetching data...', description: `Pulling from ${SOURCE_LABELS[source.source].label}` });
+      if (!skipRefresh) {
+        toast({ title: 'Fetching data...', description: `Pulling from ${SOURCE_LABELS[source.source].label}` });
+      }
       
       const { data, error } = await supabase.functions.invoke('fetch-api-data', {
         body: {
@@ -268,20 +271,25 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
 
       if (insertError) throw insertError;
 
-      toast({ 
-        title: 'Data fetched successfully', 
-        description: `${source.name} is ready for analysis` 
-      });
-
-      // Trigger page refresh to show new report
-      window.location.reload();
+      if (!skipRefresh) {
+        toast({ 
+          title: 'Data fetched successfully', 
+          description: `${source.name} is ready for analysis` 
+        });
+        window.location.reload();
+      }
+      
+      return report.id;
     } catch (error) {
       console.error('Fetch error:', error);
-      toast({ 
-        title: 'Fetch failed', 
-        description: error instanceof Error ? error.message : 'Failed to fetch data',
-        variant: 'destructive'
-      });
+      if (!skipRefresh) {
+        toast({ 
+          title: 'Fetch failed', 
+          description: error instanceof Error ? error.message : 'Failed to fetch data',
+          variant: 'destructive'
+        });
+      }
+      return null;
     } finally {
       setFetchingIds(prev => {
         const next = new Set(prev);
@@ -289,6 +297,41 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
         return next;
       });
     }
+  };
+
+  // Fetch all 9 API sources sequentially and analyze them
+  const fetchAllSources = async () => {
+    setFetchingAll(true);
+    const results: { source: string; success: boolean; reportId?: string }[] = [];
+    
+    toast({ 
+      title: 'Fetching all 9 data sources...', 
+      description: 'This may take a minute' 
+    });
+
+    for (const source of AVAILABLE_DATA_SOURCES) {
+      setFetchingIds(prev => new Set(prev).add(source.id));
+      const reportId = await fetchFromSource(source, true);
+      results.push({ 
+        source: source.name, 
+        success: !!reportId, 
+        reportId: reportId || undefined 
+      });
+      setFetchingIds(prev => {
+        const next = new Set(prev);
+        next.delete(source.id);
+        return next;
+      });
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    toast({ 
+      title: `Fetched ${successCount}/${AVAILABLE_DATA_SOURCES.length} sources`, 
+      description: 'Reports are ready for analysis' 
+    });
+    
+    setFetchingAll(false);
+    window.location.reload();
   };
 
   if (isLoading) {
@@ -322,6 +365,18 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={fetchAllSources}
+              disabled={fetchingAll || fetchingIds.size > 0}
+            >
+              {fetchingAll ? (
+                <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Fetching All...</>
+              ) : (
+                <><Download className="w-3 h-3 mr-1" />Fetch All 9 Sources</>
+              )}
+            </Button>
             <Badge variant="outline" className="text-xs">
               <Database className="w-3 h-3 mr-1" />
               {realTimeCount} Live
