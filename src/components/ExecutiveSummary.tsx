@@ -215,49 +215,50 @@ export function ExecutiveSummary() {
         </div>
       )}
 
-      {/* Insights Grid */}
-      <div className="space-y-6">
-        {/* Strengths */}
-        {strengths.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Strengths</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {strengths.map((insight) => (
-                <div
-                  key={insight.id}
-                  className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      {getCategoryIcon(insight.category)}
-                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        {getCategoryLabel(insight.category)}
-                      </span>
-                      <ConfidenceBadge confidence={insight.confidence} />
+      {/* Insights Grid - Only show if we have real data */}
+      {isRealData && displayInsights.length > 0 && (
+        <div className="space-y-6">
+          {/* Strengths */}
+          {strengths.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Strengths</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {strengths.map((insight) => (
+                  <div
+                    key={insight.id}
+                    className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {getCategoryIcon(insight.category)}
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                          {getCategoryLabel(insight.category)}
+                        </span>
+                        <ConfidenceBadge confidence={insight.confidence} />
+                      </div>
+                      {insight.metric && (
+                        <span className="metric-value text-xl text-foreground">
+                          {insight.metric}
+                        </span>
+                      )}
                     </div>
-                    {insight.metric && (
-                      <span className="metric-value text-xl text-foreground">
-                        {insight.metric}
-                      </span>
-                    )}
+                    <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                      {insight.summary}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
+                      <span>•</span>
+                      <span>{insight.reportType}</span>
+                    </div>
                   </div>
-                  <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                    {insight.summary}
-                  </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                    <span>•</span>
-                    <span>{insight.reportType}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Attention & Risks */}
         {attentionItems.length > 0 && (
