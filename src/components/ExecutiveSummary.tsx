@@ -191,17 +191,29 @@ export function ExecutiveSummary() {
                 )}
               </>
             ) : (
-              'Demo data - Upload reports in Data Ingestion tab to see real metrics'
+              'No reports analyzed yet — Upload and analyze reports in Data Ingestion tab'
             )}
           </p>
         </div>
-        {isRealData && (
+        {isRealData && reportsCount > 0 && (
           <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
             <Database className="w-3 h-3 mr-1" />
             {reportsCount} Reports Analyzed
           </Badge>
         )}
       </div>
+
+      {/* No Data State */}
+      {!isLoading && !isRealData && (
+        <div className="bg-muted/30 border border-border rounded-lg p-12 text-center">
+          <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-40" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Real Data Available</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Upload regulatory reports (Call Reports, UBPR, FRY-9C) in the Data Ingestion tab 
+            to see real metrics and insights extracted by AI.
+          </p>
+        </div>
+      )}
 
       {/* Insights Grid */}
       <div className="space-y-6">
