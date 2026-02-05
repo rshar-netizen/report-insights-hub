@@ -441,7 +441,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           </TabsList>
 
           <TabsContent value="ingested">
-            {reports.length === 0 ? (
+            {deduplicatedReports.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground border rounded-md">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No reports ingested yet</p>
@@ -457,13 +457,13 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                       <TableHead>Source</TableHead>
                       <TableHead>Institution</TableHead>
                       <TableHead>Period</TableHead>
-                      <TableHead>Ingested</TableHead>
+                      <TableHead>Last Updated</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reports.map((report) => (
+                    {deduplicatedReports.map((report) => (
                       <TableRow key={report.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -493,9 +493,17 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                           <span className="text-sm">{report.reporting_period || '—'}</span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground">
                             {formatDate(report.created_at)}
-                          </span>
+                            {report.hasOlderVersion && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary border-primary/20">
+                                  <RefreshCw className="w-2.5 h-2.5 mr-0.5" />
+                                  Updated
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(report.status)}</TableCell>
                         <TableCell className="text-right">
