@@ -10,48 +10,64 @@ import {
   Wifi,
   Database,
   RefreshCw,
-  Loader2
+  Loader2,
+  FileText
 } from 'lucide-react';
-import { executiveInsights, mizuhoMetrics, BankMetric } from '@/data/dataSources';
+import { executiveInsights, mizuhoMetrics, BankMetric, ExecutiveInsight } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAllMetrics, useDataFreshness } from '@/hooks/useRegulatoryData';
+import { useRealBankMetrics, useRealExecutiveInsights } from '@/hooks/useIngestedReportData';
 import { useToast } from '@/hooks/use-toast';
 
 export function ExecutiveSummary() {
-  const [useRealTimeData, setUseRealTimeData] = useState(false);
+  const [useRealTimeData, setUseRealTimeData] = useState(true); // Default to real data
   const { toast } = useToast();
   
-  // Fetch real-time metrics when toggle is on
-  const { data: realTimeMetrics, isLoading, isError, refetch, dataUpdatedAt } = useAllMetrics('623806');
+  // Fetch real data from ingested reports
+  const { 
+    metrics: realMetrics, 
+    reportingPeriod: metricsReportingPeriod,
+    institutionName,
+    isLoading: metricsLoading,
+    hasData: hasRealMetrics,
+    reportsCount
+  } = useRealBankMetrics();
   
-  // Transform real-time API data to match BankMetric format
-  const liveMetrics: BankMetric[] = useMemo(() => {
-    if (!realTimeMetrics || !useRealTimeData) return mizuhoMetrics;
+  const {
+    insights: realInsights,
+    reportingPeriod: insightsReportingPeriod,
+    isLoading: insightsLoading,
+    hasData: hasRealInsights
+  } = useRealExecutiveInsights();
+  
+  // Fetch live API metrics when toggle is on (for comparison)
+  const { data: apiMetrics, isLoading: apiLoading, isError, refetch, dataUpdatedAt } = useAllMetrics('623806');
+  
+  // Transform API data to match BankMetric format (for live toggle)
+  const liveApiMetrics: BankMetric[] = useMemo(() => {
+    if (!apiMetrics) return [];
     
-    return realTimeMetrics.map(metric => {
-      // Find corresponding static metric for fallback values
+    return apiMetrics.map(metric => {
       const staticMetric = mizuhoMetrics.find(m => 
         m.id.toLowerCase().includes(metric.metricId) || 
         metric.metricId.includes(m.id.toLowerCase())
       );
       
-      // Calculate change from quarterly data if available
       const qData = metric.data.quarterlyData || [];
       const change = qData.length >= 2 
         ? parseFloat(((qData[0]?.value - qData[1]?.value) / (qData[1]?.value || 1) * 100).toFixed(2))
-        : staticMetric?.change || 0;
+        : 0;
       
-      // Format value with unit
       const currentValue = metric.data.currentValue;
       const formattedValue = currentValue !== undefined 
         ? `${currentValue}${metric.data.unit}` 
-        : staticMetric?.value || 'N/A';
+        : 'N/A';
       
-      // Determine threshold status
       const getThresholdStatus = (): 'good' | 'warning' | 'critical' => {
         if (!currentValue || !metric.data.regulatoryMinimum) return 'good';
         const buffer = currentValue - metric.data.regulatoryMinimum;
@@ -77,10 +93,10 @@ export function ExecutiveSummary() {
         }
       };
     });
-  }, [realTimeMetrics, useRealTimeData]);
+  }, [apiMetrics]);
   
   // Get data freshness info
-  const latestScrapedAt = realTimeMetrics?.[0]?.scrapedAt;
+  const latestScrapedAt = apiMetrics?.[0]?.scrapedAt;
   const { isFresh, age } = useDataFreshness(latestScrapedAt);
   
   const handleRefresh = async () => {
@@ -91,8 +107,22 @@ export function ExecutiveSummary() {
     await refetch();
   };
   
-  // Use live or static metrics based on toggle
-  const displayMetrics = useRealTimeData ? liveMetrics : mizuhoMetrics;
+  // Determine which data to display
+  const isLoading = metricsLoading || insightsLoading;
+  
+  // Use real ingested data if available, otherwise fall back to static demo data
+  const displayMetrics = hasRealMetrics && realMetrics.length > 0 
+    ? realMetrics 
+    : mizuhoMetrics;
+  
+  const displayInsights = hasRealInsights && realInsights.length > 0 
+    ? realInsights 
+    : executiveInsights;
+  
+  // Reporting period from ingested data
+  const reportPeriod = metricsReportingPeriod || insightsReportingPeriod || 'Demo Data';
+  const isRealData = hasRealMetrics || hasRealInsights;
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'strength':
@@ -138,18 +168,38 @@ export function ExecutiveSummary() {
     }
   };
 
-  const strengths = executiveInsights.filter(i => i.category === 'strength');
-  const attentionItems = executiveInsights.filter(i => i.category === 'attention' || i.category === 'risk');
-  const opportunities = executiveInsights.filter(i => i.category === 'opportunity');
+  const strengths = displayInsights.filter(i => i.category === 'strength');
+  const attentionItems = displayInsights.filter(i => i.category === 'attention' || i.category === 'risk');
+  const opportunities = displayInsights.filter(i => i.category === 'opportunity');
 
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Executive Insights Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
-        <p className="text-muted-foreground">
-          Key insights derived from FFIEC, FRED, and NIC regulatory filings as of Q4 2023
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
+          <p className="text-muted-foreground">
+            {isRealData ? (
+              <>
+                Key insights derived from ingested reports
+                {reportPeriod && (
+                  <Badge variant="outline" className="ml-2">
+                    <FileText className="w-3 h-3 mr-1" />
+                    {reportPeriod}
+                  </Badge>
+                )}
+              </>
+            ) : (
+              'Demo data - Upload reports in Data Ingestion tab to see real metrics'
+            )}
+          </p>
+        </div>
+        {isRealData && (
+          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+            <Database className="w-3 h-3 mr-1" />
+            {reportsCount} Reports Analyzed
+          </Badge>
+        )}
       </div>
 
       {/* Insights Grid */}
@@ -287,59 +337,70 @@ export function ExecutiveSummary() {
           <div>
             <h2 className="text-xl font-bold text-foreground">Institution Metrics</h2>
             <p className="text-sm text-muted-foreground">
-              {useRealTimeData 
-                ? `Live data from FFIEC, FRED, and regulatory APIs${age ? ` • Updated ${age}` : ''}`
-                : 'Key performance indicators from regulatory filings'
-              }
+              {isRealData ? (
+                <>
+                  Data from ingested Call Reports
+                  {metricsReportingPeriod && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {metricsReportingPeriod}
+                    </Badge>
+                  )}
+                  {institutionName && (
+                    <span className="ml-2 text-xs">• {institutionName}</span>
+                  )}
+                </>
+              ) : (
+                'Demo data - Upload reports to see actual metrics'
+              )}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Database className={`w-4 h-4 ${!useRealTimeData ? 'text-foreground' : 'text-muted-foreground'}`} />
-              <span className={`text-sm ${!useRealTimeData ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>Demo</span>
-            </div>
-            <Switch
-              checked={useRealTimeData}
-              onCheckedChange={setUseRealTimeData}
-              aria-label="Toggle real-time data"
-            />
-            <div className="flex items-center gap-2">
-              <Wifi className={`w-4 h-4 ${useRealTimeData ? 'text-success' : 'text-muted-foreground'}`} />
-              <span className={`text-sm ${useRealTimeData ? 'text-success font-medium' : 'text-muted-foreground'}`}>Live</span>
-            </div>
-            {useRealTimeData && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isLoading}
-                className="ml-2"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-              </Button>
+          <div className="flex items-center gap-2">
+            {isRealData ? (
+              <Badge variant="default" className="bg-success/10 text-success border-success/20">
+                <CheckCircle2 className="w-3 h-3 mr-1" />
+                Real Data
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                <Database className="w-3 h-3 mr-1" />
+                Demo Mode
+              </Badge>
             )}
           </div>
         </div>
-        {isLoading && useRealTimeData && (
+        
+        {isLoading && (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
-            <span>Fetching live data from regulatory sources...</span>
+            <span>Loading metrics from ingested reports...</span>
           </div>
         )}
-        {isError && useRealTimeData && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
-            <p className="text-sm text-destructive">Failed to fetch live data. Showing cached results.</p>
+        
+        {!isLoading && displayMetrics.length === 0 && (
+          <div className="bg-muted/50 border border-border rounded-lg p-8 text-center">
+            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">No metrics extracted from reports yet.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Upload a Call Report in the Data Ingestion tab to extract metrics.
+            </p>
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {displayMetrics.map((metric) => (
-            <BankMetricCard key={metric.id} metric={metric} isRealTime={useRealTimeData && !isLoading} />
-          ))}
-        </div>
+        
+        {!isLoading && displayMetrics.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {displayMetrics.map((metric) => (
+              <BankMetricCard key={metric.id} metric={metric} isRealTime={isRealData} />
+            ))}
+          </div>
+        )}
+        
+        {/* Show note about missing metrics if using real data but not all metrics present */}
+        {isRealData && displayMetrics.length > 0 && displayMetrics.length < 6 && (
+          <p className="text-xs text-muted-foreground mt-4 italic">
+            Note: Some metrics could not be extracted from the uploaded reports. 
+            Upload additional report types (UBPR, FRY-9C) for comprehensive coverage.
+          </p>
+        )}
       </div>
     </div>
   );
