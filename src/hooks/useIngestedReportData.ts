@@ -560,6 +560,16 @@ export function useRealExecutiveInsights() {
     report.insights.forEach((insight, index) => {
       // Skip metric extraction insights - we use those for the metrics cards
       if (insight.insight_type === 'metric_extraction') return;
+      
+      // Skip insights that indicate failed data retrieval or lack actionable content
+      const lowerContent = insight.content.toLowerCase();
+      if (
+        lowerContent.includes('no financial data is available') ||
+        lowerContent.includes('system error') ||
+        lowerContent.includes('resulted in a system error') ||
+        lowerContent.includes('data retrieval failed') ||
+        lowerContent.includes('no data available')
+      ) return;
 
       // Extract a metric value if present in the content
       const metricMatch = insight.content.match(/(\d+\.?\d*%|\d+\.?\d*\s*bps|\d+\.?\d*x)/);
