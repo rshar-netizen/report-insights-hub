@@ -621,6 +621,15 @@ export function useRealExecutiveInsights() {
       // Skip metric extraction insights - we use those for the metrics cards
       if (insight.insight_type === 'metric_extraction') return;
       
+      // Skip insights from reports with outdated reporting periods (older than 2 years)
+      const period = report.reporting_period || '';
+      const periodDateMatch = period.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (periodDateMatch) {
+        const periodYear = parseInt(periodDateMatch[3]);
+        const currentYear = new Date().getFullYear();
+        if (currentYear - periodYear > 2) return;
+      }
+      
       // Skip insights that indicate failed data retrieval or lack actionable financial content
       const lowerContent = insight.content.toLowerCase();
       if (
