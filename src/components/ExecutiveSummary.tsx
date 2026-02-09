@@ -170,30 +170,12 @@ export function ExecutiveSummary() {
     }
   };
 
-  // Balanced selection: pick top insights per section, then limit to 5 total
+  // Sort all insights by confidence, then group by category
   const allByConfidence = [...displayInsights].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
   
-  const allStrengths = allByConfidence.filter(i => i.category === 'strength');
-  const allAttention = allByConfidence.filter(i => i.category === 'attention' || i.category === 'risk');
-  const allOpportunities = allByConfidence.filter(i => i.category === 'opportunity');
-  
-  // Ensure at least 1 from each section (if available), then fill remaining slots by confidence
-  const strengths = allStrengths.slice(0, 2);
-  const attentionItems = allAttention.slice(0, 2);
-  const opportunities = allOpportunities.slice(0, 1);
-  
-  // If any section is empty, redistribute slots
-  const used = strengths.length + attentionItems.length + opportunities.length;
-  if (used < 5) {
-    const remaining = 5 - used;
-    const usedIds = new Set([...strengths, ...attentionItems, ...opportunities].map(i => i.id));
-    const extras = allByConfidence.filter(i => !usedIds.has(i.id)).slice(0, remaining);
-    extras.forEach(e => {
-      if (e.category === 'strength') strengths.push(e);
-      else if (e.category === 'attention' || e.category === 'risk') attentionItems.push(e);
-      else if (e.category === 'opportunity') opportunities.push(e);
-    });
-  }
+  const strengths = allByConfidence.filter(i => i.category === 'strength');
+  const attentionItems = allByConfidence.filter(i => i.category === 'attention' || i.category === 'risk');
+  const opportunities = allByConfidence.filter(i => i.category === 'opportunity');
 
   // Deduplicated source portals for header note
   const sourcePortals = isRealData && citations
@@ -326,12 +308,12 @@ export function ExecutiveSummary() {
             </div>
           )}
 
-          {/* Opportunity Area */}
+          {/* Strategic Recommendations */}
           {opportunities.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Opportunity Area</h3>
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Strategic Recommendations</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {opportunities.map((insight) => (

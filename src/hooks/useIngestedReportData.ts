@@ -663,8 +663,16 @@ export function useRealExecutiveInsights() {
         lowerContent.includes('soap-based apis') ||
         lowerContent.includes('restful architecture') ||
         lowerContent.includes('rest api') ||
+        lowerContent.includes('rest-based api') ||
         lowerContent.includes('multi-factor authentication') ||
-        lowerContent.startsWith('[summary of')
+        lowerContent.includes('regulatory reporting transition') ||
+        lowerContent.includes('migrating its data submission') ||
+        lowerContent.includes('portal for regulatory filings') ||
+        lowerContent.includes('central data repository') && lowerContent.includes('portal') ||
+        lowerContent.includes('re-attempt data retrieval') ||
+        lowerContent.includes('verify the reporting date') ||
+        lowerContent.startsWith('[summary of') ||
+        insight.content.startsWith('[')
       ) return;
 
       // Extract a metric value if present in the content
