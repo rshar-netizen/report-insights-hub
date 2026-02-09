@@ -208,15 +208,7 @@ export function ExecutiveSummary() {
           <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
           <p className="text-muted-foreground">
             {isRealData ? (
-              <>
-                Key insights derived from ingested reports
-                {reportPeriod && (
-                  <Badge variant="outline" className="ml-2">
-                    <FileText className="w-3 h-3 mr-1" />
-                    {reportPeriod}
-                  </Badge>
-                )}
-              </>
+              'Key insights derived from ingested reports'
             ) : (
               'No reports analyzed yet — Upload and analyze reports in Data Ingestion tab'
             )}
