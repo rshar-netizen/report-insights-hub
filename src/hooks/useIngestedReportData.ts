@@ -687,6 +687,18 @@ export function useRealExecutiveInsights() {
         insight.content.startsWith('[')
       ) return;
 
+      // Skip non-actionable operational/infrastructure insights
+      const lowerTitle = insight.title.toLowerCase();
+      if (
+        lowerTitle.includes('reporting trend') ||
+        lowerTitle.includes('filing pattern') ||
+        lowerTitle.includes('infrastructure trend') ||
+        lowerTitle.includes('reporting framework') ||
+        lowerTitle.includes('technical transition') ||
+        lowerTitle.includes('data availability risk') ||
+        lowerTitle.includes('reporting infrastructure')
+      ) return;
+
       // Extract a metric value if present in the content
       const metricMatch = insight.content.match(/(\d+\.?\d*%|\d+\.?\d*\s*bps|\d+\.?\d*x)/);
       
