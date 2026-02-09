@@ -497,30 +497,45 @@ export function useRealExecutiveInsights() {
   const deriveInsightTitle = (content: string, category: string | null, insightType: string): string => {
     const lower = content.toLowerCase();
     
-    // Check for key financial themes in the content
+    // Look for specific financial themes with recency signals
+    if (lower.includes('profitability growth') || lower.includes('net income reaching')) {
+      return 'Profitability & Earnings Growth';
+    }
+    if (lower.includes('stabilizing balance sheet') || lower.includes('balance sheet') && lower.includes('stabiliz')) {
+      return 'Balance Sheet Stabilization';
+    }
+    if ((lower.includes('nim') || lower.includes('net interest margin')) && lower.includes('compress')) {
+      return 'NIM Compression & Margin Trends';
+    }
+    if ((lower.includes('nim') || lower.includes('net interest margin')) && (lower.includes('expand') || lower.includes('improv') || lower.includes('recover'))) {
+      return 'Net Interest Margin Recovery';
+    }
+    if (lower.includes('capital position') && lower.includes('stable')) {
+      return 'Stable Capital Position';
+    }
     if (lower.includes('capital position') || lower.includes('capital ratio') || lower.includes('well-capitalized')) {
-      return 'Strong Capital Position';
+      return 'Capital Adequacy & Resilience';
     }
     if (lower.includes('liquidity') && (lower.includes('robust') || lower.includes('high') || lower.includes('strong'))) {
       return 'Robust Liquidity Profile';
     }
-    if (lower.includes('net interest margin') || lower.includes('nim')) {
-      return 'Net Interest Margin Trends';
-    }
     if (lower.includes('asset quality') || lower.includes('non-performing')) {
-      return 'Asset Quality Overview';
+      return 'Asset Quality & Credit Risk';
     }
-    if (lower.includes('balance sheet')) {
-      return 'Balance Sheet Highlights';
+    if (lower.includes('roa') && lower.includes('roe')) {
+      return 'Return Metrics Overview';
     }
-    if (lower.includes('regulatory') && lower.includes('transition')) {
-      return 'Regulatory Infrastructure Update';
+    if (lower.includes('contraction') && lower.includes('profitability')) {
+      return 'Profitability Under Pressure';
     }
     if (lower.includes('corporate lending') || lower.includes('loan')) {
-      return 'Lending Portfolio Summary';
+      return 'Lending Portfolio Analysis';
     }
-    if (lower.includes('profitability') || lower.includes('return on')) {
-      return 'Profitability Analysis';
+    if (lower.includes('deposit')) {
+      return 'Deposit & Funding Trends';
+    }
+    if (lower.includes('sec') && lower.includes('filing')) {
+      return 'SEC Disclosure Summary';
     }
     if (lower.includes('risk')) {
       return 'Risk Assessment Overview';
@@ -606,14 +621,21 @@ export function useRealExecutiveInsights() {
       // Skip metric extraction insights - we use those for the metrics cards
       if (insight.insight_type === 'metric_extraction') return;
       
-      // Skip insights that indicate failed data retrieval or lack actionable content
+      // Skip insights that indicate failed data retrieval or lack actionable financial content
       const lowerContent = insight.content.toLowerCase();
       if (
         lowerContent.includes('no financial data is available') ||
         lowerContent.includes('system error') ||
         lowerContent.includes('resulted in a system error') ||
         lowerContent.includes('data retrieval failed') ||
-        lowerContent.includes('no data available')
+        lowerContent.includes('no data available') ||
+        lowerContent.includes('landing page') ||
+        lowerContent.includes('interface description') ||
+        lowerContent.includes('soap-based apis') ||
+        lowerContent.includes('restful architecture') ||
+        lowerContent.includes('rest api') ||
+        lowerContent.includes('multi-factor authentication') ||
+        lowerContent.startsWith('[summary of')
       ) return;
 
       // Extract a metric value if present in the content
@@ -638,13 +660,28 @@ export function useRealExecutiveInsights() {
     });
   });
 
+  // Deduplicate insights by title, keeping the highest confidence version
+  const deduped = insights.reduce<ExecutiveInsight[]>((acc, insight) => {
+    const existing = acc.find(i => i.title === insight.title);
+    if (existing) {
+      // Keep the one with higher confidence
+      if ((insight.confidence ?? 0) > (existing.confidence ?? 0)) {
+        const idx = acc.indexOf(existing);
+        acc[idx] = insight;
+      }
+    } else {
+      acc.push(insight);
+    }
+    return acc;
+  }, []);
+
   return {
-    insights,
+    insights: deduped,
     citations,
     reportingPeriod,
     institutionName,
     isLoading,
     error,
-    hasData: insights.length > 0,
+    hasData: deduped.length > 0,
   };
 }
