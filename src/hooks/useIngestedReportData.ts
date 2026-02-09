@@ -495,13 +495,18 @@ export function useRealExecutiveInsights() {
 
   // Map insight categories
   const mapCategory = (category: string | null, insightType: string): 'strength' | 'attention' | 'opportunity' | 'risk' => {
-    if (category === 'capital' || category === 'liquidity') return 'strength';
-    if (category === 'compliance' || category === 'strategic' || category === 'strategic_planning') return 'opportunity';
-    if (category === 'asset_quality' || category === 'profitability' || category === 'financial_performance') return 'attention';
-    if (category === 'liquidity_risk') return 'risk';
+    // First prioritize insight_type for clearer mapping
     if (insightType === 'risk_assessment') return 'risk';
     if (insightType === 'recommendation') return 'opportunity';
+    
+    // Then use category
+    if (category === 'capital' || category === 'liquidity' || category === 'balance_sheet' || category === 'general') return 'strength';
+    if (category === 'compliance' || category === 'strategic' || category === 'strategic_planning' || category === 'strategy' || category === 'operations' || category === 'regulatory_strategy' || category === 'growth') return 'opportunity';
+    if (category === 'asset_quality' || category === 'profitability' || category === 'financial_performance' || category === 'operational_risk' || category === 'liquidity_risk') return 'attention';
+    
+    // Remaining insight_type fallbacks
     if (insightType === 'trend_analysis') return 'attention';
+    if (insightType === 'metric_extraction' || insightType === 'summary') return 'strength';
     return 'attention';
   };
 
