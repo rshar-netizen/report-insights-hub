@@ -570,6 +570,11 @@ export function useRealExecutiveInsights() {
         lowerContent.includes('data retrieval failed') ||
         lowerContent.includes('no data available')
       ) return;
+      
+      // Skip outdated insights (pre-2024) to keep the summary current
+      const hasOldDate = /\b(201\d|202[0-3])\b/.test(insight.content) && 
+                         !/\b(2024|2025|2026)\b/.test(insight.content);
+      if (hasOldDate) return;
 
       // Extract a metric value if present in the content
       const metricMatch = insight.content.match(/(\d+\.?\d*%|\d+\.?\d*\s*bps|\d+\.?\d*x)/);
