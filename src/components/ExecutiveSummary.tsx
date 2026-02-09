@@ -247,7 +247,7 @@ export function ExecutiveSummary() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2 className="w-4 h-4 text-success" />
-                <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Doing Good</h3>
+                <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Strengths</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {strengths.map((insight) => (
