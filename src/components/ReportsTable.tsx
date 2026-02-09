@@ -176,7 +176,7 @@ function deduplicateReports(reports: IngestedReport[]): (IngestedReport & { hasO
 export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' }: ReportsTableProps) {
   const { toast } = useToast();
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
+  const [activeTab, setActiveTab] = useState<'ingested' | 'available' | 'errors'>('ingested');
   
   // Deduplicate reports to show only the latest version
   const deduplicatedReports = deduplicateReports(reports);
@@ -400,8 +400,10 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
     );
   }
 
-  const analyzedCount = deduplicatedReports.filter(r => r.status === 'analyzed').length;
-  const pendingCount = deduplicatedReports.filter(r => r.status === 'pending').length;
+  const errorReports = deduplicatedReports.filter(r => r.status === 'error');
+  const nonErrorReports = deduplicatedReports.filter(r => r.status !== 'error');
+  const analyzedCount = nonErrorReports.filter(r => r.status === 'analyzed').length;
+  const pendingCount = nonErrorReports.filter(r => r.status === 'pending').length;
   const realTimeCount = deduplicatedReports.filter(r => r.source !== 'upload').length;
   const availableNotIngested = AVAILABLE_DATA_SOURCES.filter(s => !isSourceIngested(s.id)).length;
   const duplicatesRemoved = reports.length - deduplicatedReports.length;
@@ -446,11 +448,15 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ingested' | 'available')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ingested' | 'available' | 'errors')}>
           <TabsList className="mb-4">
             <TabsTrigger value="ingested" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              Ingested Reports ({deduplicatedReports.length})
+              Ingested Reports ({nonErrorReports.length})
+            </TabsTrigger>
+            <TabsTrigger value="errors" className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
+              Errors ({errorReports.length})
             </TabsTrigger>
             <TabsTrigger value="available" className="flex items-center gap-2">
               <Globe className="w-4 h-4" />
@@ -459,7 +465,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           </TabsList>
 
           <TabsContent value="ingested">
-            {deduplicatedReports.length === 0 ? (
+            {nonErrorReports.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground border rounded-md">
                 <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No reports ingested yet</p>
@@ -481,7 +487,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {deduplicatedReports.map((report) => (
+                    {nonErrorReports.map((report) => (
                       <TableRow key={report.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -543,6 +549,75 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                               View Error
                             </span>
                           )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="errors">
+            {errorReports.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground border rounded-md">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50 text-success" />
+                <p>No errors</p>
+                <p className="text-sm mt-1">All ingested reports processed successfully</p>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[280px]">Report Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Period</TableHead>
+                      <TableHead>Last Updated</TableHead>
+                      <TableHead>Error Details</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {errorReports.map((report) => (
+                      <TableRow key={report.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getFileIcon(report.name)}
+                            <span className="font-medium truncate max-w-[200px]" title={report.name}>
+                              {report.name}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">
+                            {REPORT_TYPES[report.report_type] || report.report_type}
+                          </span>
+                        </TableCell>
+                        <TableCell>{getSourceBadge(report.source)}</TableCell>
+                        <TableCell>
+                          <span className="text-sm">{report.reporting_period || '—'}</span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {formatDate(report.created_at)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-destructive max-w-[250px] truncate block" title={report.error_message || 'Unknown error'}>
+                            {report.error_message || 'Unknown error'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onAnalyze(report)}
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Retry
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
