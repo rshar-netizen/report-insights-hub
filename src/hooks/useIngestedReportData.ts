@@ -641,14 +641,26 @@ export function useRealExecutiveInsights() {
       // Skip metric extraction insights - we use those for the metrics cards
       if (insight.insight_type === 'metric_extraction') return;
       
-      // Skip insights from reports with outdated reporting periods (older than 2 years)
+      // Skip insights from reports with outdated reporting periods (older than 3 years)
       const period = report.reporting_period || '';
-      const periodDateMatch = period.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-      if (periodDateMatch) {
-        const periodYear = parseInt(periodDateMatch[3]);
-        const currentYear = new Date().getFullYear();
-        if (currentYear - periodYear > 2) return;
-      }
+      const currentYear = new Date().getFullYear();
+      const cutoffYear = currentYear - 3;
+      
+      // Extract year from various period formats: MM/DD/YYYY, Q# YYYY, Mon YYYY, YYYY-MM-DD, or standalone YYYY
+      const dateMatch = period.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      const quarterMatch = period.match(/Q\d\s*(\d{4})/i);
+      const monthYearMatch = period.match(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+(\d{4})/i);
+      const isoMatch = period.match(/(\d{4})-\d{2}-\d{2}/);
+      const yearOnly = period.match(/\b((?:19|20)\d{2})\b/);
+      
+      const periodYear = dateMatch ? parseInt(dateMatch[3])
+        : quarterMatch ? parseInt(quarterMatch[1])
+        : monthYearMatch ? parseInt(monthYearMatch[2])
+        : isoMatch ? parseInt(isoMatch[1])
+        : yearOnly ? parseInt(yearOnly[1])
+        : null;
+      
+      if (periodYear !== null && periodYear < cutoffYear) return;
       
       // Skip insights that indicate failed data retrieval or lack actionable financial content
       const lowerContent = insight.content.toLowerCase();
