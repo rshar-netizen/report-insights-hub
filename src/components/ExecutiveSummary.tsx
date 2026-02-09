@@ -170,9 +170,19 @@ export function ExecutiveSummary() {
     }
   };
 
-  const strengths = displayInsights.filter(i => i.category === 'strength');
-  const attentionItems = displayInsights.filter(i => i.category === 'attention' || i.category === 'risk');
-  const opportunities = displayInsights.filter(i => i.category === 'opportunity');
+  // Limit to top 5 insights by confidence, then categorize
+  const topInsights = [...displayInsights]
+    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
+    .slice(0, 5);
+
+  const strengths = topInsights.filter(i => i.category === 'strength');
+  const attentionItems = topInsights.filter(i => i.category === 'attention' || i.category === 'risk');
+  const opportunities = topInsights.filter(i => i.category === 'opportunity');
+
+  // Deduplicated source portals for header note
+  const sourcePortals = isRealData && citations
+    ? [...new Set(citations.filter(c => c.status === 'analyzed').map(c => c.source))]
+    : [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -195,6 +205,11 @@ export function ExecutiveSummary() {
               'No reports analyzed yet — Upload and analyze reports in Data Ingestion tab'
             )}
           </p>
+          {sourcePortals.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Based on reports from: {sourcePortals.join(' • ')}
+            </p>
+          )}
         </div>
         {isRealData && reportsCount > 0 && (
           <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
@@ -347,34 +362,8 @@ export function ExecutiveSummary() {
         </div>
       )}
 
-      {/* Report Citations */}
-      {isRealData && citations && citations.length > 0 && (
-        <div className="glass-card rounded-lg p-5 border border-border/50">
-          <div className="flex items-center gap-2 mb-3">
-            <FileText className="w-4 h-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Source Reports
-            </h4>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            This executive summary is based on the following analyzed reports:
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {citations.filter(c => c.status === 'analyzed').map((citation, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs py-1 px-2.5">
-                <Database className="w-3 h-3 mr-1.5" />
-                {citation.reportType} — {citation.source} ({citation.period})
-              </Badge>
-            ))}
-          </div>
-          {citations.some(c => c.status === 'error') && (
-            <p className="text-xs text-muted-foreground mt-3 italic">
-              Note: {citations.filter(c => c.status === 'error').length} report(s) could not be analyzed — 
-              {citations.filter(c => c.status === 'error').map(c => c.reportType).join(', ')}
-            </p>
-          )}
-        </div>
-      )}
+
+
 
       {/* Performance Tracking - Q-o-Q and Y-o-Y */}
       <MetricTrendTracker />
