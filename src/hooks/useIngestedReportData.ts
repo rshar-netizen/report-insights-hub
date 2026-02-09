@@ -493,6 +493,51 @@ export interface ReportCitation {
 export function useRealExecutiveInsights() {
   const { data: reports, isLoading, error } = useIngestedReports();
 
+  // Derive a descriptive title from content when original title is generic
+  const deriveInsightTitle = (content: string, category: string | null, insightType: string): string => {
+    const lower = content.toLowerCase();
+    
+    // Check for key financial themes in the content
+    if (lower.includes('capital position') || lower.includes('capital ratio') || lower.includes('well-capitalized')) {
+      return 'Strong Capital Position';
+    }
+    if (lower.includes('liquidity') && (lower.includes('robust') || lower.includes('high') || lower.includes('strong'))) {
+      return 'Robust Liquidity Profile';
+    }
+    if (lower.includes('net interest margin') || lower.includes('nim')) {
+      return 'Net Interest Margin Trends';
+    }
+    if (lower.includes('asset quality') || lower.includes('non-performing')) {
+      return 'Asset Quality Overview';
+    }
+    if (lower.includes('balance sheet')) {
+      return 'Balance Sheet Highlights';
+    }
+    if (lower.includes('regulatory') && lower.includes('transition')) {
+      return 'Regulatory Infrastructure Update';
+    }
+    if (lower.includes('corporate lending') || lower.includes('loan')) {
+      return 'Lending Portfolio Summary';
+    }
+    if (lower.includes('profitability') || lower.includes('return on')) {
+      return 'Profitability Analysis';
+    }
+    if (lower.includes('risk')) {
+      return 'Risk Assessment Overview';
+    }
+    if (lower.includes('compliance')) {
+      return 'Compliance & Regulatory Standing';
+    }
+    
+    // Fallback based on category
+    if (category === 'capital') return 'Capital Adequacy Summary';
+    if (category === 'liquidity') return 'Liquidity Position Summary';
+    if (category === 'asset_quality') return 'Asset Quality Summary';
+    if (category === 'profitability' || category === 'financial_performance') return 'Financial Performance Summary';
+    
+    return 'Financial Overview';
+  };
+
   // Map insight categories
   const mapCategory = (category: string | null, insightType: string): 'strength' | 'attention' | 'opportunity' | 'risk' => {
     // First prioritize insight_type for clearer mapping
@@ -574,10 +619,16 @@ export function useRealExecutiveInsights() {
       // Extract a metric value if present in the content
       const metricMatch = insight.content.match(/(\d+\.?\d*%|\d+\.?\d*\s*bps|\d+\.?\d*x)/);
       
+      // Generate a descriptive title if the original is generic "Executive Summary"
+      let displayTitle = insight.title;
+      if (displayTitle.toLowerCase() === 'executive summary') {
+        displayTitle = deriveInsightTitle(insight.content, insight.category, insight.insight_type);
+      }
+      
       insights.push({
         id: `real-insight-${report.id}-${index}`,
         category: mapCategory(insight.category, insight.insight_type),
-        title: insight.title,
+        title: displayTitle,
         summary: insight.content,
         metric: metricMatch ? metricMatch[0] : undefined,
         source: getSourceLabel(report.source),
