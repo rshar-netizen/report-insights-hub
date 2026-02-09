@@ -22,7 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAllMetrics, useDataFreshness } from '@/hooks/useRegulatoryData';
-import { useRealBankMetrics, useRealExecutiveInsights } from '@/hooks/useIngestedReportData';
+import { useRealBankMetrics, useRealExecutiveInsights, ReportCitation } from '@/hooks/useIngestedReportData';
 import { useToast } from '@/hooks/use-toast';
 
 export function ExecutiveSummary() {
@@ -41,6 +41,7 @@ export function ExecutiveSummary() {
   
   const {
     insights: realInsights,
+    citations,
     reportingPeriod: insightsReportingPeriod,
     isLoading: insightsLoading,
     hasData: hasRealInsights
@@ -342,6 +343,35 @@ export function ExecutiveSummary() {
                 ))}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Report Citations */}
+      {isRealData && citations && citations.length > 0 && (
+        <div className="glass-card rounded-lg p-5 border border-border/50">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="w-4 h-4 text-muted-foreground" />
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Source Reports
+            </h4>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            This executive summary is based on the following analyzed reports:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {citations.filter(c => c.status === 'analyzed').map((citation, idx) => (
+              <Badge key={idx} variant="outline" className="text-xs py-1 px-2.5">
+                <Database className="w-3 h-3 mr-1.5" />
+                {citation.reportType} — {citation.source} ({citation.period})
+              </Badge>
+            ))}
+          </div>
+          {citations.some(c => c.status === 'error') && (
+            <p className="text-xs text-muted-foreground mt-3 italic">
+              Note: {citations.filter(c => c.status === 'error').length} report(s) could not be analyzed — 
+              {citations.filter(c => c.status === 'error').map(c => c.reportType).join(', ')}
+            </p>
           )}
         </div>
       )}
