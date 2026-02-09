@@ -1,25 +1,18 @@
 import { useState, useMemo } from 'react';
 import { 
   TrendingUp, 
-  TrendingDown, 
   AlertTriangle, 
   CheckCircle2,
   Lightbulb,
   ShieldAlert,
-  ExternalLink,
-  Wifi,
   Database,
-  RefreshCw,
   Loader2,
   FileText
 } from 'lucide-react';
-import { executiveInsights, mizuhoMetrics, BankMetric, ExecutiveInsight } from '@/data/dataSources';
+import { mizuhoMetrics, BankMetric, ExecutiveInsight } from '@/data/dataSources';
 import { BankMetricCard } from './BankMetricCard';
 import { MetricTrendTracker } from './MetricTrendTracker';
 import { ConfidenceBadge } from './ConfidenceBadge';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAllMetrics, useDataFreshness } from '@/hooks/useRegulatoryData';
 import { useRealBankMetrics, useRealExecutiveInsights, ReportCitation } from '@/hooks/useIngestedReportData';
@@ -170,12 +163,27 @@ export function ExecutiveSummary() {
     }
   };
 
-  // Sort all insights by confidence, then group by category
+  // Curate top 5 CFO-focused insights: 2 strengths, 2 risks/attention, 1 recommendation
   const allByConfidence = [...displayInsights].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
   
-  const strengths = allByConfidence.filter(i => i.category === 'strength');
-  const attentionItems = allByConfidence.filter(i => i.category === 'attention' || i.category === 'risk');
-  const opportunities = allByConfidence.filter(i => i.category === 'opportunity');
+  const topStrengths = allByConfidence.filter(i => i.category === 'strength').slice(0, 2);
+  const topRisks = allByConfidence.filter(i => i.category === 'attention' || i.category === 'risk').slice(0, 2);
+  const topRecommendation = allByConfidence.filter(i => i.category === 'opportunity').slice(0, 1);
+  
+  // Fill remaining slots if any category is short
+  const selected = [...topStrengths, ...topRisks, ...topRecommendation];
+  const selectedIds = new Set(selected.map(i => i.id));
+  const remaining = allByConfidence.filter(i => !selectedIds.has(i.id));
+  while (selected.length < 5 && remaining.length > 0) {
+    selected.push(remaining.shift()!);
+  }
+  
+  // Final ordered list: strengths first, then risks, then recommendations
+  const curatedInsights = [
+    ...selected.filter(i => i.category === 'strength'),
+    ...selected.filter(i => i.category === 'attention' || i.category === 'risk'),
+    ...selected.filter(i => i.category === 'opportunity'),
+  ];
 
   // Deduplicated source portals for header note
   const sourcePortals = isRealData && citations
@@ -190,7 +198,7 @@ export function ExecutiveSummary() {
           <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
           <p className="text-muted-foreground">
             {isRealData ? (
-              'Key insights derived from ingested reports'
+              'Top insights for CFO review — growth, performance & risk'
             ) : (
               'No reports analyzed yet — Upload and analyze reports in Data Ingestion tab'
             )}
@@ -221,134 +229,44 @@ export function ExecutiveSummary() {
         </div>
       )}
 
-      {/* Insights Grid - Only show if we have real data */}
-      {isRealData && displayInsights.length > 0 && (
-        <div className="space-y-6">
-          {/* Doing Good */}
-          {strengths.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircle2 className="w-4 h-4 text-success" />
-                <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Strengths</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {strengths.map((insight) => (
-                  <div
-                    key={insight.id}
-                    className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {getCategoryIcon(insight.category)}
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          {getCategoryLabel(insight.category)}
-                        </span>
-                        <ConfidenceBadge confidence={insight.confidence} />
-                      </div>
-                      {insight.metric && (
-                        <span className="metric-value text-xl text-foreground">
-                          {insight.metric}
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                      {insight.summary}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                      <span>•</span>
-                      <span>{insight.reportType}</span>
-                    </div>
+      {/* Curated CFO Insights — 4-5 key points */}
+      {isRealData && curatedInsights.length > 0 && (
+        <div className="space-y-3">
+          {curatedInsights.map((insight, idx) => (
+            <div
+              key={insight.id}
+              className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
+            >
+              <div className="flex items-start gap-4">
+                <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                  <span className="text-sm font-bold text-muted-foreground">{idx + 1}</span>
+                  {getCategoryIcon(insight.category)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h4 className="font-semibold text-foreground">{insight.title}</h4>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50">
+                      {getCategoryLabel(insight.category)}
+                    </span>
+                    <ConfidenceBadge confidence={insight.confidence} />
+                    {insight.metric && (
+                      <span className="metric-value text-lg text-foreground ml-auto">
+                        {insight.metric}
+                      </span>
+                    )}
                   </div>
-                ))}
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+                    {insight.summary}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
+                    <span>•</span>
+                    <span>{insight.reportType}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
-
-          {/* Attention & Risks */}
-          {attentionItems.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle className="w-4 h-4 text-warning" />
-                <h3 className="text-sm font-semibold text-warning uppercase tracking-wide">Requires Attention</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {attentionItems.map((insight) => (
-                  <div
-                    key={insight.id}
-                    className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {getCategoryIcon(insight.category)}
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          {getCategoryLabel(insight.category)}
-                        </span>
-                        <ConfidenceBadge confidence={insight.confidence} />
-                      </div>
-                      {insight.metric && (
-                        <span className="metric-value text-xl text-foreground">
-                          {insight.metric}
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                      {insight.summary}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                      <span>•</span>
-                      <span>{insight.reportType}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Strategic Recommendations */}
-          {opportunities.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Strategic Recommendations</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {opportunities.map((insight) => (
-                  <div
-                    key={insight.id}
-                    className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        {getCategoryIcon(insight.category)}
-                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                          {getCategoryLabel(insight.category)}
-                        </span>
-                        <ConfidenceBadge confidence={insight.confidence} />
-                      </div>
-                      {insight.metric && (
-                        <span className="metric-value text-xl text-foreground">
-                          {insight.metric}
-                        </span>
-                      )}
-                    </div>
-                    <h4 className="font-semibold text-foreground mb-2">{insight.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-                      {insight.summary}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                      <span>•</span>
-                      <span>{insight.reportType}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          ))}
         </div>
       )}
 
