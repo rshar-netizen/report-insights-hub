@@ -205,7 +205,7 @@ export function ExecutiveSummary() {
       {/* Executive Insights Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">Financial Health Overview</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
           <p className="text-muted-foreground">
             {isRealData ? (
               'Key insights derived from ingested reports'
