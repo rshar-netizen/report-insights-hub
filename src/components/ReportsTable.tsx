@@ -51,7 +51,7 @@ const SOURCE_LABELS: Record<string, { label: string; icon: typeof Database }> = 
   custom: { label: 'Custom API', icon: ExternalLink },
 };
 
-// Available API data sources that can be fetched
+// Available API data sources (only those with successful ingestion history)
 const AVAILABLE_DATA_SOURCES = [
   {
     id: 'ffiec-call-report',
@@ -98,42 +98,6 @@ const AVAILABLE_DATA_SOURCES = [
     metrics: ['Total Assets', 'Net Income', 'Equity Capital'],
     endpoint: '/financials',
   },
-  {
-    id: 'sec-10k',
-    name: 'SEC 10-K Annual Filing',
-    report_type: 'sec_filing',
-    source: 'sec',
-    description: 'Annual comprehensive report',
-    metrics: ['Revenue', 'Net Income', 'Risk Factors'],
-    endpoint: '/browse-edgar',
-  },
-  {
-    id: 'sec-10q',
-    name: 'SEC 10-Q Quarterly Filing',
-    report_type: 'sec_filing',
-    source: 'sec',
-    description: 'Quarterly financial report',
-    metrics: ['Quarterly Revenue', 'Operating Income'],
-    endpoint: '/browse-edgar',
-  },
-  {
-    id: 'fred-rates',
-    name: 'Federal Reserve Interest Rates',
-    report_type: 'economic_indicator',
-    source: 'fred',
-    description: 'Fed Funds Rate, Treasury Yields',
-    metrics: ['Fed Funds Rate', '10Y Treasury', '2Y Treasury'],
-    endpoint: '/series/observations',
-  },
-  {
-    id: 'fred-economic',
-    name: 'Economic Indicators',
-    report_type: 'economic_indicator',
-    source: 'fred',
-    description: 'GDP, Unemployment, Inflation data',
-    metrics: ['GDP', 'Unemployment Rate', 'CPI'],
-    endpoint: '/series/observations',
-  },
 ];
 
 interface ReportsTableProps {
@@ -176,7 +140,7 @@ function deduplicateReports(reports: IngestedReport[]): (IngestedReport & { hasO
 export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' }: ReportsTableProps) {
   const { toast } = useToast();
   const [fetchingIds, setFetchingIds] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<'ingested' | 'available' | 'errors'>('ingested');
+  const [activeTab, setActiveTab] = useState<'ingested' | 'available'>('ingested');
   
   // Deduplicate reports to show only the latest version
   const deduplicatedReports = deduplicateReports(reports);
@@ -356,7 +320,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
     const results: { source: string; success: boolean; reportId?: string }[] = [];
     
     toast({ 
-      title: 'Fetching all 9 data sources...', 
+      title: 'Fetching all data sources...', 
       description: 'This may take a minute' 
     });
 
@@ -400,10 +364,8 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
     );
   }
 
-  const errorReports = deduplicatedReports.filter(r => r.status === 'error');
   const nonErrorReports = deduplicatedReports.filter(r => r.status !== 'error');
   const analyzedCount = nonErrorReports.filter(r => r.status === 'analyzed').length;
-  const pendingCount = nonErrorReports.filter(r => r.status === 'pending').length;
   const realTimeCount = deduplicatedReports.filter(r => r.source !== 'upload').length;
   const availableNotIngested = AVAILABLE_DATA_SOURCES.filter(s => !isSourceIngested(s.id)).length;
   const duplicatesRemoved = reports.length - deduplicatedReports.length;
@@ -433,7 +395,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
               {fetchingAll ? (
                 <><Loader2 className="w-3 h-3 mr-1 animate-spin" />Fetching All...</>
               ) : (
-                <><Download className="w-3 h-3 mr-1" />Fetch All 9 Sources</>
+                <><Download className="w-3 h-3 mr-1" />Fetch All Sources</>
               )}
             </Button>
             <Badge variant="outline" className="text-xs">
@@ -448,15 +410,11 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
         </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ingested' | 'available' | 'errors')}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ingested' | 'available')}>
           <TabsList className="mb-4">
             <TabsTrigger value="ingested" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Ingested Reports ({nonErrorReports.length})
-            </TabsTrigger>
-            <TabsTrigger value="errors" className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4" />
-              Errors ({errorReports.length})
             </TabsTrigger>
             <TabsTrigger value="available" className="flex items-center gap-2">
               <Globe className="w-4 h-4" />
@@ -558,74 +516,6 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
             )}
           </TabsContent>
 
-          <TabsContent value="errors">
-            {errorReports.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border rounded-md">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50 text-success" />
-                <p>No errors</p>
-                <p className="text-sm mt-1">All ingested reports processed successfully</p>
-              </div>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[280px]">Report Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead>Period</TableHead>
-                      <TableHead>Last Updated</TableHead>
-                      <TableHead>Error Details</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {errorReports.map((report) => (
-                      <TableRow key={report.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getFileIcon(report.name)}
-                            <span className="font-medium truncate max-w-[200px]" title={report.name}>
-                              {report.name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">
-                            {REPORT_TYPES[report.report_type] || report.report_type}
-                          </span>
-                        </TableCell>
-                        <TableCell>{getSourceBadge(report.source)}</TableCell>
-                        <TableCell>
-                          <span className="text-sm">{report.reporting_period || '—'}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {formatDate(report.created_at)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-destructive max-w-[250px] truncate block" title={report.error_message || 'Unknown error'}>
-                            {report.error_message || 'Unknown error'}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onAnalyze(report)}
-                          >
-                            <RefreshCw className="w-3 h-3 mr-1" />
-                            Retry
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
 
           <TabsContent value="available">
             <div className="rounded-md border">
