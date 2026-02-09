@@ -234,12 +234,12 @@ export function ExecutiveSummary() {
       {/* Insights Grid - Only show if we have real data */}
       {isRealData && displayInsights.length > 0 && (
         <div className="space-y-6">
-          {/* Strengths */}
+          {/* Doing Good */}
           {strengths.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle2 className="w-4 h-4 text-success" />
-                <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Strengths</h3>
+                <h3 className="text-sm font-semibold text-success uppercase tracking-wide">Doing Good</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {strengths.map((insight) => (
@@ -318,12 +318,12 @@ export function ExecutiveSummary() {
             </div>
           )}
 
-          {/* Opportunities */}
+          {/* Opportunity Area */}
           {opportunities.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Opportunities</h3>
+                <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Opportunity Area</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {opportunities.map((insight) => (
