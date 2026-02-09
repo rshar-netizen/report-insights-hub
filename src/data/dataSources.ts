@@ -1007,16 +1007,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Difference between interest income generated and interest expenses relative to earning assets. Key indicator of lending profitability.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 2.78, reportType: 'Call Report Schedule RI' },
-      { period: 'Q2 2023', value: 2.68, reportType: 'Call Report Schedule RI' },
-      { period: 'Q3 2023', value: 2.60, reportType: 'Call Report Schedule RI' },
-      { period: 'Q4 2023', value: 2.42, reportType: 'Call Report Schedule RI' }
+      { period: 'Q1 2024', value: 2.35, reportType: 'Call Report Schedule RI' },
+      { period: 'Q2 2024', value: 2.41, reportType: 'Call Report Schedule RI' },
+      { period: 'Q3 2024', value: 2.50, reportType: 'Call Report Schedule RI' },
+      { period: 'Q4 2024', value: 2.55, reportType: 'Call Report Schedule RI' },
+      { period: 'Q1 2025', value: 2.60, reportType: 'Call Report Schedule RI' },
+      { period: 'Q2 2025', value: 2.58, reportType: 'Call Report Schedule RI' },
+      { period: 'Q3 2025', value: 2.63, reportType: 'Call Report Schedule RI' },
+      { period: 'Q4 2025', value: 2.68, reportType: 'Call Report Schedule RI' }
     ],
     yearlyData: [
-      { period: '2020', value: 2.45, reportType: 'Call Report Annual' },
       { period: '2021', value: 2.52, reportType: 'Call Report Annual' },
       { period: '2022', value: 2.85, reportType: 'Call Report Annual' },
-      { period: '2023', value: 2.62, reportType: 'Call Report Annual' }
+      { period: '2023', value: 2.62, reportType: 'Call Report Annual' },
+      { period: '2024', value: 2.45, reportType: 'Call Report Annual' },
+      { period: '2025', value: 2.62, reportType: 'Call Report Annual' }
     ],
     peerMedian: 2.65,
     sources: [
@@ -1031,16 +1036,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Core capital as a percentage of risk-weighted assets. Measures the bank\'s ability to absorb losses while remaining solvent.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 14.2, reportType: 'FRY-9C Schedule HC-R' },
-      { period: 'Q2 2023', value: 14.4, reportType: 'FRY-9C Schedule HC-R' },
-      { period: 'Q3 2023', value: 14.5, reportType: 'FRY-9C Schedule HC-R' },
-      { period: 'Q4 2023', value: 14.8, reportType: 'FRY-9C Schedule HC-R' }
+      { period: 'Q1 2024', value: 14.9, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q2 2024', value: 15.0, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q3 2024', value: 15.1, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q4 2024', value: 15.3, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q1 2025', value: 15.4, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q2 2025', value: 15.2, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q3 2025', value: 15.5, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q4 2025', value: 15.6, reportType: 'FRY-9C Schedule HC-R' }
     ],
     yearlyData: [
-      { period: '2020', value: 13.2, reportType: 'FRY-9C Annual' },
       { period: '2021', value: 13.8, reportType: 'FRY-9C Annual' },
       { period: '2022', value: 14.1, reportType: 'FRY-9C Annual' },
-      { period: '2023', value: 14.8, reportType: 'FRY-9C Annual' }
+      { period: '2023', value: 14.8, reportType: 'FRY-9C Annual' },
+      { period: '2024', value: 15.3, reportType: 'FRY-9C Annual' },
+      { period: '2025', value: 15.6, reportType: 'FRY-9C Annual' }
     ],
     peerMedian: 14.15,
     sources: [
@@ -1055,16 +1065,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Common Equity Tier 1 capital as a percentage of risk-weighted assets. Highest quality regulatory capital.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 12.6, reportType: 'FRY-9C Schedule HC-R' },
-      { period: 'Q2 2023', value: 12.8, reportType: 'FRY-9C Schedule HC-R' },
-      { period: 'Q3 2023', value: 13.0, reportType: 'FRY-9C Schedule HC-R' },
-      { period: 'Q4 2023', value: 13.2, reportType: 'FRY-9C Schedule HC-R' }
+      { period: 'Q1 2024', value: 13.3, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q2 2024', value: 13.4, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q3 2024', value: 13.5, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q4 2024', value: 13.6, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q1 2025', value: 13.7, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q2 2025', value: 13.5, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q3 2025', value: 13.8, reportType: 'FRY-9C Schedule HC-R' },
+      { period: 'Q4 2025', value: 13.9, reportType: 'FRY-9C Schedule HC-R' }
     ],
     yearlyData: [
-      { period: '2020', value: 11.8, reportType: 'FRY-9C Annual' },
       { period: '2021', value: 12.2, reportType: 'FRY-9C Annual' },
       { period: '2022', value: 12.5, reportType: 'FRY-9C Annual' },
-      { period: '2023', value: 13.2, reportType: 'FRY-9C Annual' }
+      { period: '2023', value: 13.2, reportType: 'FRY-9C Annual' },
+      { period: '2024', value: 13.6, reportType: 'FRY-9C Annual' },
+      { period: '2025', value: 13.9, reportType: 'FRY-9C Annual' }
     ],
     peerMedian: 12.55,
     sources: [
@@ -1078,16 +1093,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Net income relative to total assets. Indicates how effectively the bank uses its assets to generate profit.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 1.05, reportType: 'UBPR Page 1' },
-      { period: 'Q2 2023', value: 1.01, reportType: 'UBPR Page 1' },
-      { period: 'Q3 2023', value: 0.97, reportType: 'UBPR Page 1' },
-      { period: 'Q4 2023', value: 0.92, reportType: 'UBPR Page 1' }
+      { period: 'Q1 2024', value: 0.88, reportType: 'UBPR Page 1' },
+      { period: 'Q2 2024', value: 0.90, reportType: 'UBPR Page 1' },
+      { period: 'Q3 2024', value: 0.93, reportType: 'UBPR Page 1' },
+      { period: 'Q4 2024', value: 0.95, reportType: 'UBPR Page 1' },
+      { period: 'Q1 2025', value: 0.97, reportType: 'UBPR Page 1' },
+      { period: 'Q2 2025', value: 0.94, reportType: 'UBPR Page 1' },
+      { period: 'Q3 2025', value: 1.00, reportType: 'UBPR Page 1' },
+      { period: 'Q4 2025', value: 1.02, reportType: 'UBPR Page 1' }
     ],
     yearlyData: [
-      { period: '2020', value: 0.78, reportType: 'UBPR Annual' },
       { period: '2021', value: 0.95, reportType: 'UBPR Annual' },
       { period: '2022', value: 1.08, reportType: 'UBPR Annual' },
-      { period: '2023', value: 0.99, reportType: 'UBPR Annual' }
+      { period: '2023', value: 0.99, reportType: 'UBPR Annual' },
+      { period: '2024', value: 0.92, reportType: 'UBPR Annual' },
+      { period: '2025', value: 0.98, reportType: 'UBPR Annual' }
     ],
     peerMedian: 1.02,
     sources: [
@@ -1101,16 +1121,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Net income relative to shareholders\' equity. Measures profitability from shareholder perspective.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 11.2, reportType: 'UBPR Page 1' },
-      { period: 'Q2 2023', value: 10.8, reportType: 'UBPR Page 1' },
-      { period: 'Q3 2023', value: 10.2, reportType: 'UBPR Page 1' },
-      { period: 'Q4 2023', value: 9.8, reportType: 'UBPR Page 1' }
+      { period: 'Q1 2024', value: 9.5, reportType: 'UBPR Page 1' },
+      { period: 'Q2 2024', value: 9.8, reportType: 'UBPR Page 1' },
+      { period: 'Q3 2024', value: 10.1, reportType: 'UBPR Page 1' },
+      { period: 'Q4 2024', value: 10.4, reportType: 'UBPR Page 1' },
+      { period: 'Q1 2025', value: 10.6, reportType: 'UBPR Page 1' },
+      { period: 'Q2 2025', value: 10.3, reportType: 'UBPR Page 1' },
+      { period: 'Q3 2025', value: 10.8, reportType: 'UBPR Page 1' },
+      { period: 'Q4 2025', value: 11.0, reportType: 'UBPR Page 1' }
     ],
     yearlyData: [
-      { period: '2020', value: 8.2, reportType: 'UBPR Annual' },
       { period: '2021', value: 10.5, reportType: 'UBPR Annual' },
       { period: '2022', value: 11.8, reportType: 'UBPR Annual' },
-      { period: '2023', value: 10.5, reportType: 'UBPR Annual' }
+      { period: '2023', value: 10.5, reportType: 'UBPR Annual' },
+      { period: '2024', value: 9.9, reportType: 'UBPR Annual' },
+      { period: '2025', value: 10.7, reportType: 'UBPR Annual' }
     ],
     peerMedian: 11.75,
     sources: [
@@ -1124,16 +1149,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Non-interest expenses as a percentage of revenue. Lower values indicate better operational efficiency.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 61.5, reportType: 'Call Report Schedule RI' },
-      { period: 'Q2 2023', value: 62.1, reportType: 'Call Report Schedule RI' },
-      { period: 'Q3 2023', value: 63.0, reportType: 'Call Report Schedule RI' },
-      { period: 'Q4 2023', value: 64.2, reportType: 'Call Report Schedule RI' }
+      { period: 'Q1 2024', value: 63.8, reportType: 'Call Report Schedule RI' },
+      { period: 'Q2 2024', value: 63.2, reportType: 'Call Report Schedule RI' },
+      { period: 'Q3 2024', value: 62.5, reportType: 'Call Report Schedule RI' },
+      { period: 'Q4 2024', value: 61.8, reportType: 'Call Report Schedule RI' },
+      { period: 'Q1 2025', value: 61.2, reportType: 'Call Report Schedule RI' },
+      { period: 'Q2 2025', value: 61.5, reportType: 'Call Report Schedule RI' },
+      { period: 'Q3 2025', value: 60.8, reportType: 'Call Report Schedule RI' },
+      { period: 'Q4 2025', value: 60.2, reportType: 'Call Report Schedule RI' }
     ],
     yearlyData: [
-      { period: '2020', value: 68.5, reportType: 'Call Report Annual' },
       { period: '2021', value: 65.2, reportType: 'Call Report Annual' },
       { period: '2022', value: 62.8, reportType: 'Call Report Annual' },
-      { period: '2023', value: 62.7, reportType: 'Call Report Annual' }
+      { period: '2023', value: 62.7, reportType: 'Call Report Annual' },
+      { period: '2024', value: 62.8, reportType: 'Call Report Annual' },
+      { period: '2025', value: 60.9, reportType: 'Call Report Annual' }
     ],
     peerMedian: 63.15,
     sources: [
@@ -1147,16 +1177,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Non-performing loans as a percentage of total loans. Key indicator of credit quality and asset health.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 0.58, reportType: 'FRY-9C Schedule HC-N' },
-      { period: 'Q2 2023', value: 0.62, reportType: 'FRY-9C Schedule HC-N' },
-      { period: 'Q3 2023', value: 0.64, reportType: 'FRY-9C Schedule HC-N' },
-      { period: 'Q4 2023', value: 0.72, reportType: 'FRY-9C Schedule HC-N' }
+      { period: 'Q1 2024', value: 0.75, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q2 2024', value: 0.78, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q3 2024', value: 0.80, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q4 2024', value: 0.76, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q1 2025', value: 0.73, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q2 2025', value: 0.70, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q3 2025', value: 0.68, reportType: 'FRY-9C Schedule HC-N' },
+      { period: 'Q4 2025', value: 0.65, reportType: 'FRY-9C Schedule HC-N' }
     ],
     yearlyData: [
-      { period: '2020', value: 0.95, reportType: 'FRY-9C Annual' },
       { period: '2021', value: 0.72, reportType: 'FRY-9C Annual' },
       { period: '2022', value: 0.55, reportType: 'FRY-9C Annual' },
-      { period: '2023', value: 0.64, reportType: 'FRY-9C Annual' }
+      { period: '2023', value: 0.64, reportType: 'FRY-9C Annual' },
+      { period: '2024', value: 0.77, reportType: 'FRY-9C Annual' },
+      { period: '2025', value: 0.69, reportType: 'FRY-9C Annual' }
     ],
     peerMedian: 0.85,
     sources: [
@@ -1170,16 +1205,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'High-quality liquid assets as a percentage of 30-day net cash outflows. Regulatory minimum is 100%.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 128, reportType: 'FR 2052a' },
-      { period: 'Q2 2023', value: 132, reportType: 'FR 2052a' },
-      { period: 'Q3 2023', value: 137, reportType: 'FR 2052a' },
-      { period: 'Q4 2023', value: 142, reportType: 'FR 2052a' }
+      { period: 'Q1 2024', value: 145, reportType: 'FR 2052a' },
+      { period: 'Q2 2024', value: 140, reportType: 'FR 2052a' },
+      { period: 'Q3 2024', value: 138, reportType: 'FR 2052a' },
+      { period: 'Q4 2024', value: 143, reportType: 'FR 2052a' },
+      { period: 'Q1 2025', value: 146, reportType: 'FR 2052a' },
+      { period: 'Q2 2025', value: 148, reportType: 'FR 2052a' },
+      { period: 'Q3 2025', value: 150, reportType: 'FR 2052a' },
+      { period: 'Q4 2025', value: 152, reportType: 'FR 2052a' }
     ],
     yearlyData: [
-      { period: '2020', value: 118, reportType: 'FR 2052a Annual' },
       { period: '2021', value: 125, reportType: 'FR 2052a Annual' },
       { period: '2022', value: 130, reportType: 'FR 2052a Annual' },
-      { period: '2023', value: 135, reportType: 'FR 2052a Annual' }
+      { period: '2023', value: 135, reportType: 'FR 2052a Annual' },
+      { period: '2024', value: 142, reportType: 'FR 2052a Annual' },
+      { period: '2025', value: 149, reportType: 'FR 2052a Annual' }
     ],
     peerMedian: 117,
     sources: [
@@ -1194,16 +1234,21 @@ export const metricHistoricalData: MetricHistoricalData[] = [
     description: 'Non-performing assets divided by tangible equity plus loan loss reserves. Measures bank health; below 50% is considered safe.',
     unit: '%',
     quarterlyData: [
-      { period: 'Q1 2023', value: 7.8, reportType: 'UBPR' },
-      { period: 'Q2 2023', value: 8.0, reportType: 'UBPR' },
-      { period: 'Q3 2023', value: 8.2, reportType: 'UBPR' },
-      { period: 'Q4 2023', value: 8.4, reportType: 'UBPR' }
+      { period: 'Q1 2024', value: 8.6, reportType: 'UBPR' },
+      { period: 'Q2 2024', value: 8.3, reportType: 'UBPR' },
+      { period: 'Q3 2024', value: 8.0, reportType: 'UBPR' },
+      { period: 'Q4 2024', value: 7.8, reportType: 'UBPR' },
+      { period: 'Q1 2025', value: 7.5, reportType: 'UBPR' },
+      { period: 'Q2 2025', value: 7.3, reportType: 'UBPR' },
+      { period: 'Q3 2025', value: 7.1, reportType: 'UBPR' },
+      { period: 'Q4 2025', value: 6.9, reportType: 'UBPR' }
     ],
     yearlyData: [
-      { period: '2020', value: 12.5, reportType: 'UBPR Annual' },
       { period: '2021', value: 9.8, reportType: 'UBPR Annual' },
       { period: '2022', value: 7.5, reportType: 'UBPR Annual' },
-      { period: '2023', value: 8.1, reportType: 'UBPR Annual' }
+      { period: '2023', value: 8.1, reportType: 'UBPR Annual' },
+      { period: '2024', value: 8.2, reportType: 'UBPR Annual' },
+      { period: '2025', value: 7.2, reportType: 'UBPR Annual' }
     ],
     peerMedian: 10.2,
     sources: [
