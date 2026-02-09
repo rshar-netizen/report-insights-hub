@@ -480,28 +480,79 @@ export function useRealBankMetrics() {
   };
 }
 
-// Convert insights to ExecutiveInsight format
+// Source report info for citations
+export interface ReportCitation {
+  name: string;
+  reportType: string;
+  source: string;
+  period: string;
+  status: string;
+}
+
+// Convert insights to ExecutiveInsight format - aggregates from ALL analyzed reports
 export function useRealExecutiveInsights() {
   const { data: reports, isLoading, error } = useIngestedReports();
-
-  // Get all insights from the latest report
-  const latestReport = reports?.[0];
-  const reportingPeriod = latestReport?.reporting_period || '';
 
   // Map insight categories
   const mapCategory = (category: string | null, insightType: string): 'strength' | 'attention' | 'opportunity' | 'risk' => {
     if (category === 'capital' || category === 'liquidity') return 'strength';
-    if (category === 'compliance' || category === 'strategic') return 'opportunity';
-    if (category === 'asset_quality' || category === 'profitability') return 'attention';
+    if (category === 'compliance' || category === 'strategic' || category === 'strategic_planning') return 'opportunity';
+    if (category === 'asset_quality' || category === 'profitability' || category === 'financial_performance') return 'attention';
+    if (category === 'liquidity_risk') return 'risk';
     if (insightType === 'risk_assessment') return 'risk';
     if (insightType === 'recommendation') return 'opportunity';
+    if (insightType === 'trend_analysis') return 'attention';
     return 'attention';
   };
 
-  const insights: ExecutiveInsight[] = [];
+  const getSourceLabel = (source: string): string => {
+    switch (source) {
+      case 'ffiec': return 'FFIEC CDR';
+      case 'fdic': return 'FDIC';
+      case 'sec': return 'SEC EDGAR';
+      case 'fred': return 'FRED';
+      case 'upload': return 'Uploaded Report';
+      default: return source.toUpperCase();
+    }
+  };
 
-  if (latestReport?.insights) {
-    latestReport.insights.forEach((insight, index) => {
+  const getReportTypeLabel = (reportType: string): string => {
+    switch (reportType) {
+      case 'call_report': return 'Call Report';
+      case 'ubpr': return 'UBPR';
+      case 'fr_y9c': return 'FRY-9C';
+      case 'summary_of_deposits': return 'Summary of Deposits';
+      case 'sec_filing': return 'SEC Filing';
+      case 'economic_indicator': return 'Economic Indicator';
+      case 'custom': return 'FDIC Financials';
+      default: return reportType.toUpperCase();
+    }
+  };
+
+  const insights: ExecutiveInsight[] = [];
+  const citations: ReportCitation[] = [];
+  let reportingPeriod = '';
+  let institutionName: string | undefined;
+
+  // Aggregate insights from ALL analyzed reports
+  reports?.forEach((report) => {
+    if (!institutionName && report.institution_name) {
+      institutionName = report.institution_name;
+    }
+    if (!reportingPeriod && report.reporting_period) {
+      reportingPeriod = report.reporting_period;
+    }
+
+    // Track citations
+    citations.push({
+      name: report.name,
+      reportType: getReportTypeLabel(report.report_type),
+      source: getSourceLabel(report.source),
+      period: report.reporting_period || extractPeriodFromFilename(report.name) || 'Latest',
+      status: report.status,
+    });
+
+    report.insights.forEach((insight, index) => {
       // Skip metric extraction insights - we use those for the metrics cards
       if (insight.insight_type === 'metric_extraction') return;
 
@@ -509,22 +560,23 @@ export function useRealExecutiveInsights() {
       const metricMatch = insight.content.match(/(\d+\.?\d*%|\d+\.?\d*\s*bps|\d+\.?\d*x)/);
       
       insights.push({
-        id: `real-insight-${index}`,
+        id: `real-insight-${report.id}-${index}`,
         category: mapCategory(insight.category, insight.insight_type),
         title: insight.title,
-        summary: insight.content, // Show full content without truncation
+        summary: insight.content,
         metric: metricMatch ? metricMatch[0] : undefined,
-        source: latestReport.source === 'upload' ? 'Call Report' : latestReport.source.toUpperCase(),
-        reportType: `${latestReport.report_type} (${reportingPeriod || 'Latest'})`,
+        source: getSourceLabel(report.source),
+        reportType: `${getReportTypeLabel(report.report_type)} (${report.reporting_period || 'Latest'})`,
         confidence: insight.confidence_score ?? undefined
       });
     });
-  }
+  });
 
   return {
     insights,
+    citations,
     reportingPeriod,
-    institutionName: latestReport?.institution_name,
+    institutionName,
     isLoading,
     error,
     hasData: insights.length > 0,
