@@ -170,14 +170,30 @@ export function ExecutiveSummary() {
     }
   };
 
-  // Limit to top 5 insights by confidence, then categorize
-  const topInsights = [...displayInsights]
-    .sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0))
-    .slice(0, 5);
-
-  const strengths = topInsights.filter(i => i.category === 'strength');
-  const attentionItems = topInsights.filter(i => i.category === 'attention' || i.category === 'risk');
-  const opportunities = topInsights.filter(i => i.category === 'opportunity');
+  // Balanced selection: pick top insights per section, then limit to 5 total
+  const allByConfidence = [...displayInsights].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+  
+  const allStrengths = allByConfidence.filter(i => i.category === 'strength');
+  const allAttention = allByConfidence.filter(i => i.category === 'attention' || i.category === 'risk');
+  const allOpportunities = allByConfidence.filter(i => i.category === 'opportunity');
+  
+  // Ensure at least 1 from each section (if available), then fill remaining slots by confidence
+  const strengths = allStrengths.slice(0, 2);
+  const attentionItems = allAttention.slice(0, 2);
+  const opportunities = allOpportunities.slice(0, 1);
+  
+  // If any section is empty, redistribute slots
+  const used = strengths.length + attentionItems.length + opportunities.length;
+  if (used < 5) {
+    const remaining = 5 - used;
+    const usedIds = new Set([...strengths, ...attentionItems, ...opportunities].map(i => i.id));
+    const extras = allByConfidence.filter(i => !usedIds.has(i.id)).slice(0, remaining);
+    extras.forEach(e => {
+      if (e.category === 'strength') strengths.push(e);
+      else if (e.category === 'attention' || e.category === 'risk') attentionItems.push(e);
+      else if (e.category === 'opportunity') opportunities.push(e);
+    });
+  }
 
   // Deduplicated source portals for header note
   const sourcePortals = isRealData && citations
