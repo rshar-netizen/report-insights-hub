@@ -553,11 +553,31 @@ export function useRealExecutiveInsights() {
     return 'Financial Overview';
   };
 
-  // Map insight categories
-  const mapCategory = (category: string | null, insightType: string): 'strength' | 'attention' | 'opportunity' | 'risk' => {
+  // Map insight categories - uses content sentiment to override when needed
+  const mapCategory = (category: string | null, insightType: string, content?: string): 'strength' | 'attention' | 'opportunity' | 'risk' => {
     // First prioritize insight_type for clearer mapping
     if (insightType === 'risk_assessment') return 'risk';
     if (insightType === 'recommendation') return 'opportunity';
+    
+    // For general/summary insights, check content sentiment to classify correctly
+    if ((category === 'general' || insightType === 'summary') && content) {
+      const lower = content.toLowerCase();
+      const hasNegativeSignals = (
+        lower.includes('compress') || lower.includes('contraction') || 
+        lower.includes('decline') || lower.includes('under pressure') ||
+        lower.includes('compressed relative') || lower.includes('volatility')
+      );
+      const hasPositiveSignals = (
+        lower.includes('strong') || lower.includes('growth') || 
+        lower.includes('expanded') || lower.includes('robust') ||
+        lower.includes('well above') || lower.includes('improved')
+      );
+      
+      if (hasNegativeSignals && !hasPositiveSignals) return 'attention';
+      if (hasPositiveSignals && !hasNegativeSignals) return 'strength';
+      // Mixed signals → attention (CFO should be aware)
+      if (hasNegativeSignals && hasPositiveSignals) return 'attention';
+    }
     
     // Then use category
     if (category === 'capital' || category === 'liquidity' || category === 'balance_sheet' || category === 'general') return 'strength';
@@ -658,7 +678,7 @@ export function useRealExecutiveInsights() {
       
       insights.push({
         id: `real-insight-${report.id}-${index}`,
-        category: mapCategory(insight.category, insight.insight_type),
+        category: mapCategory(insight.category, insight.insight_type, insight.content),
         title: displayTitle,
         summary: insight.content,
         metric: metricMatch ? metricMatch[0] : undefined,
