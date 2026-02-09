@@ -476,7 +476,7 @@ export function useRealBankMetrics() {
     isLoading,
     error,
     hasData,
-    reportsCount: reports?.length || 0,
+    reportsCount: new Set(reports?.map(r => r.name)).size || 0,
   };
 }
 
