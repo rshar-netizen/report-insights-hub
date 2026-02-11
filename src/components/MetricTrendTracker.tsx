@@ -19,6 +19,7 @@ import {
 import { TrendingUp, TrendingDown, ExternalLink, FileText, Calendar, RefreshCw, AlertCircle, Wifi } from 'lucide-react';
 import { metricHistoricalData, MetricHistoricalData } from '@/data/dataSources';
 import { useMetricData, useRefreshMetric, useDataFreshness } from '@/hooks/useRegulatoryData';
+import { useIngestedHistoricalData } from '@/hooks/useIngestedReportData';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
@@ -32,32 +33,41 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
   const [timeframe, setTimeframe] = useState<'quarterly' | 'yearly'>('quarterly');
   const [useRealData, setUseRealData] = useState(enableRealTime);
 
-  // Fetch real-time data
+  // Fetch real-time data from APIs
   const { data: realTimeData, isLoading, isError, error, isFetching } = useMetricData(selectedMetric);
   const { refresh } = useRefreshMetric();
   const { isFresh, age } = useDataFreshness(realTimeData?.scrapedAt);
+
+  // Fetch ingested report historical data (from FDIC etc.)
+  const { historicalData: ingestedHistorical, hasData: hasIngestedHistory } = useIngestedHistoricalData();
 
   // Fallback to mock data
   const currentMetric = metricHistoricalData.find(m => m.id === selectedMetric);
   
   if (!currentMetric) return null;
 
-  // Determine which data to use
-  const hasRealData = useRealData && realTimeData?.success && realTimeData.data?.quarterlyData?.length > 0;
+  // Priority: 1) Real-time API data, 2) Ingested report historical data, 3) Demo data
+  const hasRealTimeApiData = useRealData && realTimeData?.success && realTimeData.data?.quarterlyData?.length > 0;
+  const hasIngestedData = hasIngestedHistory && ingestedHistorical[selectedMetric]?.length > 0;
   
-  // Get raw data from real-time or fallback
-  const rawRealData = hasRealData
-    ? (timeframe === 'quarterly' ? realTimeData.data.quarterlyData : realTimeData.data.yearlyData)
-    : [];
-  
-  const fallbackData = timeframe === 'quarterly' 
-    ? currentMetric.quarterlyData 
-    : currentMetric.yearlyData;
-  
-  // Normalize data to include reportType
-  const data = hasRealData
-    ? rawRealData.map(d => ({ ...d, reportType: realTimeData.source || 'Live Data' }))
-    : fallbackData;
+  // Get raw data based on priority
+  let data: { period: string; value: number; reportType: string }[];
+  let dataSourceLabel: string;
+
+  if (hasRealTimeApiData) {
+    const rawRealData = timeframe === 'quarterly' ? realTimeData.data.quarterlyData : realTimeData.data.yearlyData;
+    data = rawRealData.map((d: any) => ({ ...d, reportType: realTimeData.source || 'Live Data' }));
+    dataSourceLabel = 'Live API';
+  } else if (hasIngestedData) {
+    data = ingestedHistorical[selectedMetric];
+    dataSourceLabel = 'Ingested Reports';
+  } else {
+    const fallbackData = timeframe === 'quarterly' 
+      ? currentMetric.quarterlyData 
+      : currentMetric.yearlyData;
+    data = fallbackData;
+    dataSourceLabel = 'Demo Data';
+  }
 
   const latestValue = data[data.length - 1]?.value ?? 0;
   const previousValue = data[data.length - 2]?.value ?? 0;
@@ -78,7 +88,7 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
   const yMax = maxValue + padding;
 
   // Get peer median from real data or fallback
-  const peerMedian = hasRealData && realTimeData.data.peerMedian 
+  const peerMedian = hasRealTimeApiData && realTimeData.data.peerMedian 
     ? realTimeData.data.peerMedian 
     : currentMetric.peerMedian;
 
@@ -89,7 +99,7 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-foreground">Performance Tracking</h2>
-            {useRealData && (
+            {useRealData && !hasIngestedData && (
               <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
                 isFresh ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
               }`}>
@@ -97,11 +107,19 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
                 {isLoading ? 'Fetching...' : (isFresh ? 'Live' : `${age}`)}
               </span>
             )}
+            {hasIngestedData && (
+              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">
+                <FileText className="w-3 h-3" />
+                Real Data
+              </span>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
-            {useRealData 
-              ? 'Real-time data from FFIEC, FRED, SEC EDGAR & FDIC'
-              : 'Quarter-over-quarter and year-over-year self comparison'}
+            {hasIngestedData
+              ? 'Historical data from ingested regulatory reports'
+              : useRealData 
+                ? 'Real-time data from FFIEC, FRED, SEC EDGAR & FDIC'
+                : 'Quarter-over-quarter and year-over-year self comparison'}
           </p>
         </div>
 
@@ -207,9 +225,14 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
             <p className="text-sm text-muted-foreground max-w-md">
               {currentMetric.description}
             </p>
-            {hasRealData && realTimeData.source && (
+            {hasRealTimeApiData && realTimeData.source && (
               <p className="text-xs text-primary mt-1">
                 Source: {realTimeData.source}
+              </p>
+            )}
+            {!hasRealTimeApiData && hasIngestedData && (
+              <p className="text-xs text-primary mt-1">
+                Source: Ingested Reports (FDIC)
               </p>
             )}
           </div>
@@ -312,9 +335,9 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">Data Sources</span>
-                {hasRealData && (
+                {(hasRealTimeApiData || hasIngestedData) && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                    Live
+                    {hasRealTimeApiData ? 'Live' : 'Real'}
                   </span>
                 )}
               </div>
@@ -338,9 +361,11 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3.5 h-3.5" />
               <span>
-                {hasRealData 
+                {hasRealTimeApiData 
                   ? `Scraped: ${new Date(realTimeData.scrapedAt).toLocaleString()}`
-                  : `Last updated: ${currentMetric.lastUpdated}`
+                  : hasIngestedData
+                    ? 'From ingested regulatory reports'
+                    : `Last updated: ${currentMetric.lastUpdated}`
                 }
               </span>
             </div>
@@ -400,7 +425,7 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
                         {row.reportType}
-                        {hasRealData && (
+                        {hasRealTimeApiData && (
                           <span className="ml-1 text-primary">(Live)</span>
                         )}
                       </td>

@@ -40,6 +40,7 @@ interface IngestedReport {
   reporting_period: string | null;
   status: string;
   created_at: string;
+  raw_content: string | null;
 }
 
 interface ReportWithInsights extends IngestedReport {
@@ -744,5 +745,96 @@ export function useRealExecutiveInsights() {
     isLoading,
     error,
     hasData: deduped.length > 0,
+  };
+}
+
+// Parse FDIC raw_content markdown table into historical time-series per metric
+function parseFdicHistoricalData(rawContent: string): Record<string, { period: string; value: number; reportType: string }[]> {
+  const result: Record<string, { period: string; value: number; reportType: string }[]> = {};
+  
+  // Parse the markdown table rows
+  const lines = rawContent.split('\n');
+  const dataRows = lines.filter(line => line.startsWith('|') && !line.includes('---') && !line.includes('Period'));
+  
+  // Find header row to map columns
+  const headerLine = lines.find(line => line.startsWith('|') && line.includes('Period'));
+  if (!headerLine) return result;
+  
+  const headers = headerLine.split('|').map(h => h.trim()).filter(Boolean);
+  
+  const metricMap: Record<string, string> = {
+    'ROA': 'roa',
+    'ROE': 'roe',
+    'NIM': 'nim',
+  };
+  
+  dataRows.forEach(row => {
+    const cells = row.split('|').map(c => c.trim()).filter(Boolean);
+    if (cells.length < 2) return;
+    
+    const periodRaw = cells[0]; // e.g. "20250930"
+    const year = periodRaw.slice(0, 4);
+    const month = parseInt(periodRaw.slice(4, 6));
+    const quarter = Math.ceil(month / 3);
+    const period = `Q${quarter} ${year}`;
+    
+    headers.forEach((header, idx) => {
+      const metricId = metricMap[header];
+      if (!metricId || idx >= cells.length) return;
+      
+      const valStr = cells[idx].replace('%', '').replace('$', '').replace(/,/g, '').trim();
+      const value = parseFloat(valStr);
+      if (isNaN(value)) return;
+      
+      if (!result[metricId]) result[metricId] = [];
+      result[metricId].push({ period, value, reportType: 'FDIC' });
+    });
+  });
+  
+  // Sort each metric by period chronologically
+  Object.keys(result).forEach(key => {
+    result[key].sort((a, b) => {
+      const [aq, ay] = [parseInt(a.period[1]), parseInt(a.period.slice(3))];
+      const [bq, by] = [parseInt(b.period[1]), parseInt(b.period.slice(3))];
+      return ay !== by ? ay - by : aq - bq;
+    });
+  });
+  
+  return result;
+}
+
+// Hook to get historical trend data from ingested reports
+export function useIngestedHistoricalData() {
+  const { data: reports, isLoading } = useIngestedReports();
+  
+  const historicalData = reports?.reduce<Record<string, { period: string; value: number; reportType: string }[]>>((acc, report) => {
+    if (report.raw_content && report.source === 'fdic') {
+      const parsed = parseFdicHistoricalData(report.raw_content);
+      Object.entries(parsed).forEach(([metricId, dataPoints]) => {
+        if (!acc[metricId]) acc[metricId] = [];
+        // Merge, avoiding duplicate periods
+        dataPoints.forEach(dp => {
+          if (!acc[metricId].some(existing => existing.period === dp.period)) {
+            acc[metricId].push(dp);
+          }
+        });
+      });
+    }
+    return acc;
+  }, {}) || {};
+  
+  // Re-sort after merging
+  Object.keys(historicalData).forEach(key => {
+    historicalData[key].sort((a, b) => {
+      const [aq, ay] = [parseInt(a.period[1]), parseInt(a.period.slice(3))];
+      const [bq, by] = [parseInt(b.period[1]), parseInt(b.period.slice(3))];
+      return ay !== by ? ay - by : aq - bq;
+    });
+  });
+  
+  return {
+    historicalData,
+    isLoading,
+    hasData: Object.keys(historicalData).length > 0,
   };
 }
