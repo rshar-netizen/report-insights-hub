@@ -274,7 +274,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Core capital as % of risk-weighted assets. Measures ability to absorb losses.',
-        threshold: { min: 8.0, status: metrics.tier1_capital_ratio >= 10.5 ? 'good' : metrics.tier1_capital_ratio >= 8 ? 'warning' : 'critical' }
+        threshold: { min: 8.0, status: metrics.tier1_capital_ratio >= 10.5 ? 'good' : metrics.tier1_capital_ratio >= 8 ? 'warning' : 'critical', context: `Industry benchmark: ≥10.5% is well-capitalized (good), 8–10.5% meets minimum (warning), <8% is under-capitalized (critical). Current: ${metrics.tier1_capital_ratio}%.` }
       });
     }
 
@@ -294,7 +294,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Common Equity Tier 1 capital as % of risk-weighted assets.',
-        threshold: { min: 7.0, status: cet1Value >= 9 ? 'good' : cet1Value >= 7 ? 'warning' : 'critical' }
+        threshold: { min: 7.0, status: cet1Value >= 9 ? 'good' : cet1Value >= 7 ? 'warning' : 'critical', context: `Industry benchmark: ≥9% is strong (good), 7–9% meets Basel III minimum (warning), <7% is deficient (critical). Current: ${cet1Value}%.` }
       });
     }
 
@@ -312,7 +312,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Total regulatory capital as % of risk-weighted assets.',
-        threshold: { min: 10.0, status: metrics.total_capital_ratio >= 12 ? 'good' : metrics.total_capital_ratio >= 10 ? 'warning' : 'critical' }
+        threshold: { min: 10.0, status: metrics.total_capital_ratio >= 12 ? 'good' : metrics.total_capital_ratio >= 10 ? 'warning' : 'critical', context: `Industry benchmark: ≥12% is well-capitalized (good), 10–12% meets minimum (warning), <10% is under-capitalized (critical). Current: ${metrics.total_capital_ratio}%.` }
       });
     }
 
@@ -330,7 +330,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/public/ManageFacsimiles.aspx',
         bankId: 'mizuho',
         description: 'Tier 1 capital divided by average total consolidated assets.',
-        threshold: { min: 4.0, status: metrics.tier1_leverage_ratio >= 5 ? 'good' : metrics.tier1_leverage_ratio >= 4 ? 'warning' : 'critical' }
+        threshold: { min: 4.0, status: metrics.tier1_leverage_ratio >= 5 ? 'good' : metrics.tier1_leverage_ratio >= 4 ? 'warning' : 'critical', context: `Industry benchmark: ≥5% is strong (good), 4–5% meets minimum (warning), <4% is under-leveraged (critical). Current: ${metrics.tier1_leverage_ratio}%.` }
       });
     }
 
@@ -348,7 +348,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Difference between interest income and interest paid, relative to assets.',
-        threshold: { min: 2.5, status: metrics.net_interest_margin >= 2.5 ? 'good' : metrics.net_interest_margin >= 2 ? 'warning' : 'critical' }
+        threshold: { min: 2.5, status: metrics.net_interest_margin >= 2.5 ? 'good' : metrics.net_interest_margin >= 2 ? 'warning' : 'critical', context: `Industry benchmark: ≥2.5% is healthy (good), 2–2.5% is below average (warning), <2% signals concern (critical). Current: ${metrics.net_interest_margin}%.` }
       });
     }
 
@@ -368,7 +368,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Net income as a percentage of average total assets.',
-        threshold: { min: 1.0, status: roaValue >= 1.0 ? 'good' : roaValue >= 0.5 ? 'warning' : 'critical' }
+        threshold: { min: 1.0, status: roaValue >= 1.0 ? 'good' : roaValue >= 0.5 ? 'warning' : 'critical', context: `Industry benchmark: ≥1.0% is strong (good), 0.5–1.0% is below average (warning), <0.5% signals weak profitability (critical). Current: ${roaValue}%.` }
       });
     }
 
@@ -386,7 +386,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Net income as a percentage of average total equity.',
-        threshold: { min: 10.0, status: metrics.roe >= 10 ? 'good' : metrics.roe >= 6 ? 'warning' : 'critical' }
+        threshold: { min: 10.0, status: metrics.roe >= 10 ? 'good' : metrics.roe >= 6 ? 'warning' : 'critical', context: `Industry benchmark (FDIC/Fed): ≥10% is strong profitability (good), 6–10% is below peer average (warning), <6% signals weak returns (critical). Current: ${metrics.roe}%.` }
       });
     }
 
@@ -404,7 +404,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Non-interest expenses divided by revenue. Lower is better.',
-        threshold: { max: 60.0, status: metrics.efficiency_ratio <= 55 ? 'good' : metrics.efficiency_ratio <= 65 ? 'warning' : 'critical' }
+        threshold: { max: 60.0, status: metrics.efficiency_ratio <= 55 ? 'good' : metrics.efficiency_ratio <= 65 ? 'warning' : 'critical', context: `Industry benchmark: ≤55% is efficient (good), 55–65% is average (warning), >65% signals high overhead (critical). Lower is better. Current: ${metrics.efficiency_ratio}%.` }
       });
     }
 
@@ -422,7 +422,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'Non-performing loans as a percentage of total loans.',
-        threshold: { max: 2.0, status: metrics.npl_ratio <= 1 ? 'good' : metrics.npl_ratio <= 2 ? 'warning' : 'critical' }
+        threshold: { max: 2.0, status: metrics.npl_ratio <= 1 ? 'good' : metrics.npl_ratio <= 2 ? 'warning' : 'critical', context: `Industry benchmark: ≤1% is healthy credit quality (good), 1–2% needs monitoring (warning), >2% signals elevated risk (critical). Lower is better. Current: ${metrics.npl_ratio}%.` }
       });
     }
 
@@ -440,7 +440,7 @@ export function useRealBankMetrics() {
         sourceUrl: 'https://cdr.ffiec.gov/',
         bankId: 'mizuho',
         description: 'High-quality liquid assets to net cash outflows over 30 days.',
-        threshold: { min: 100.0, status: metrics.lcr >= 120 ? 'good' : metrics.lcr >= 100 ? 'warning' : 'critical' }
+        threshold: { min: 100.0, status: metrics.lcr >= 120 ? 'good' : metrics.lcr >= 100 ? 'warning' : 'critical', context: `Basel III requirement: ≥120% is strong (good), 100–120% meets minimum (warning), <100% is non-compliant (critical). Current: ${metrics.lcr}%.` }
       });
     }
 
