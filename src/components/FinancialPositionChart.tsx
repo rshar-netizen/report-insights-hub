@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer
 } from 'recharts';
-import { Info, Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText } from 'lucide-react';
 import { useAllReportMetrics } from '@/hooks/useIngestedReportData';
 
 interface BalanceSheetItem {
@@ -203,22 +203,6 @@ export function FinancialPositionChart() {
             ))}
           </div>
         </div>
-
-      {/* CET1 = Tier1 explanation */}
-      {capitalBreakdown.cet1Ratio === capitalBreakdown.tier1Ratio && capitalBreakdown.cet1Ratio > 0 && (
-        <div className="p-3 rounded-md bg-primary/5 border border-primary/10">
-          <div className="flex gap-2 text-xs">
-            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-foreground mb-1">Why CET1 = Tier 1 at {capitalBreakdown.cet1Ratio.toFixed(2)}%?</p>
-              <p className="text-muted-foreground leading-relaxed">
-                Mizuho holds <strong>no Additional Tier 1 (AT1) capital</strong> — no preferred stock or contingent convertibles. 
-                All Tier 1 capital is Common Equity, which is typical for foreign bank subsidiaries funded purely by the parent.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
 
       <p className="text-xs text-muted-foreground italic">
         Note: Total assets ({formatCurrency(totalAssets)}) and capital ratios are from ingested reports. 
