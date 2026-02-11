@@ -122,15 +122,15 @@ export function ExecutiveSummary() {
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'strength':
-        return <CheckCircle2 className="w-5 h-5 text-success" />;
+        return <CheckCircle2 className="w-4 h-4 text-success" />;
       case 'attention':
-        return <AlertTriangle className="w-5 h-5 text-warning" />;
+        return <AlertTriangle className="w-4 h-4 text-warning" />;
       case 'opportunity':
-        return <Lightbulb className="w-5 h-5 text-primary" />;
+        return <Lightbulb className="w-4 h-4 text-primary" />;
       case 'risk':
-        return <ShieldAlert className="w-5 h-5 text-destructive" />;
+        return <ShieldAlert className="w-4 h-4 text-destructive" />;
       default:
-        return <TrendingUp className="w-5 h-5 text-muted-foreground" />;
+        return <TrendingUp className="w-4 h-4 text-muted-foreground" />;
     }
   };
 
@@ -156,7 +156,7 @@ export function ExecutiveSummary() {
       case 'attention':
         return 'Attention';
       case 'opportunity':
-        return 'Opportunity';
+        return 'Recommendation';
       case 'risk':
         return 'Risk';
       default:
@@ -164,105 +164,119 @@ export function ExecutiveSummary() {
     }
   };
 
-  // Curate top 5 CFO-focused insights: 2 strengths, 2 risks/attention, 1 recommendation
-  const allByConfidence = [...displayInsights].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
-  
-  const topStrengths = allByConfidence.filter(i => i.category === 'strength').slice(0, 2);
-  const topRisks = allByConfidence.filter(i => i.category === 'attention' || i.category === 'risk').slice(0, 2);
-  const topRecommendation = allByConfidence.filter(i => i.category === 'opportunity').slice(0, 1);
-  
-  // Fill remaining slots if any category is short
-  const selected = [...topStrengths, ...topRisks, ...topRecommendation];
-  const selectedIds = new Set(selected.map(i => i.id));
-  const remaining = allByConfidence.filter(i => !selectedIds.has(i.id));
-  while (selected.length < 5 && remaining.length > 0) {
-    selected.push(remaining.shift()!);
-  }
-  
-  // Final ordered list: strengths first, then risks, then recommendations
-  const curatedInsights = [
-    ...selected.filter(i => i.category === 'strength'),
-    ...selected.filter(i => i.category === 'attention' || i.category === 'risk'),
-    ...selected.filter(i => i.category === 'opportunity'),
-  ];
+  // Filter to only actionable insights: trends, risks, recommendations (skip generic summaries)
+  const actionableInsights = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    
+    return displayInsights.filter(insight => {
+      // Only keep risk_assessment, trend_analysis, recommendation types
+      const isActionableCategory = insight.category === 'risk' || insight.category === 'attention' || insight.category === 'opportunity';
+      if (!isActionableCategory) return false;
+      
+      // Skip generic/old content
+      const lower = insight.summary.toLowerCase();
+      if (lower.includes('as of january 31, 2021') || lower.includes('01/31/2021')) return false;
+      if (lower.includes('soap') || lower.includes('rest api') || lower.includes('multi-factor authentication')) return false;
+      if (lower.includes('data retrieval') || lower.includes('inaccessible') || lower.includes('critical gap in regulatory monitoring')) return false;
+      if (lower.includes('landing page') || lower.includes('central data repository')) return false;
+      if (insight.title.includes('Technical Transition') || insight.title.includes('Data Availability')) return false;
+      if (insight.title.includes('Institutional Classification')) return false;
+      
+      return true;
+    });
+  }, [displayInsights]);
+
+  // Pick top 4: 1 risk, 1 trend/attention, 1 recommendation, 1 best remaining
+  const curatedGrid = useMemo(() => {
+    const sorted = [...actionableInsights].sort((a, b) => (b.confidence ?? 0) - (a.confidence ?? 0));
+    
+    const risks = sorted.filter(i => i.category === 'risk');
+    const attention = sorted.filter(i => i.category === 'attention');
+    const recommendations = sorted.filter(i => i.category === 'opportunity');
+    
+    const selected: ExecutiveInsight[] = [];
+    const usedIds = new Set<string>();
+    
+    const pick = (list: ExecutiveInsight[]) => {
+      const item = list.find(i => !usedIds.has(i.id));
+      if (item) { selected.push(item); usedIds.add(item.id); }
+    };
+    
+    pick(risks);
+    pick(attention);
+    pick(recommendations);
+    // Fill 4th slot from remaining
+    const remaining = sorted.filter(i => !usedIds.has(i.id));
+    if (remaining.length > 0) { selected.push(remaining[0]); }
+    
+    return selected.slice(0, 4);
+  }, [actionableInsights]);
 
   // Deduplicated source portals for header note
   const sourcePortals = isRealData && citations
     ? [...new Set(citations.filter(c => c.status === 'analyzed').map(c => c.source))]
     : [];
 
+  // Truncate summary to ~2 lines
+  const truncate = (text: string, maxLen = 160) => 
+    text.length > maxLen ? text.slice(0, maxLen).trimEnd() + '…' : text;
+
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Executive Insights Header */}
-      <div className="flex items-start justify-between">
+    <div className="space-y-6 animate-fade-in">
+      {/* Executive Insights Header — compact */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">Executive Summary</h2>
-          <p className="text-muted-foreground">
-            {isRealData ? (
-              'Top insights for CFO review — growth, performance & risk'
-            ) : (
-              'No reports analyzed yet — Upload and analyze reports in Data Ingestion tab'
-            )}
-          </p>
+          <h2 className="text-xl font-bold text-foreground">Executive Summary</h2>
           {sourcePortals.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Based on reports from: {sourcePortals.join(' • ')}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Sources: {sourcePortals.join(' · ')}
             </p>
           )}
         </div>
         {isRealData && reportsCount > 0 && (
-          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20">
+          <Badge variant="default" className="bg-primary/10 text-primary border-primary/20 text-xs">
             <Database className="w-3 h-3 mr-1" />
-            {reportsCount} Reports Analyzed
+            {reportsCount} Reports
           </Badge>
         )}
       </div>
 
       {/* No Data State */}
       {!isLoading && !isRealData && (
-        <div className="bg-muted/30 border border-border rounded-lg p-12 text-center">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-40" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">No Real Data Available</h3>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Upload regulatory reports (Call Reports, UBPR, FRY-9C) in the Data Ingestion tab 
-            to see real metrics and insights extracted by AI.
+        <div className="bg-muted/30 border border-border rounded-lg p-8 text-center">
+          <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
+          <h3 className="text-base font-semibold text-foreground mb-1">No Data Available</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            Upload regulatory reports in the Data Ingestion tab to see insights.
           </p>
         </div>
       )}
 
-      {/* Curated CFO Insights — 4-5 key points */}
-      {isRealData && curatedInsights.length > 0 && (
-        <div className="space-y-3">
-          {curatedInsights.map((insight, idx) => (
+      {/* 2×2 Insight Grid */}
+      {isRealData && curatedGrid.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {curatedGrid.map((insight) => (
             <div
               key={insight.id}
-              className={`glass-card rounded-lg p-5 border-l-4 ${getCategoryStyle(insight.category)} hover:glow-border transition-all duration-300`}
+              className={`rounded-lg p-4 border-l-4 border border-border ${getCategoryStyle(insight.category)} transition-all duration-200 hover:shadow-sm`}
             >
-              <div className="flex items-start gap-4">
-                <div className="flex items-center gap-2 shrink-0 pt-0.5">
-                  <span className="text-sm font-bold text-muted-foreground">{idx + 1}</span>
-                  {getCategoryIcon(insight.category)}
-                </div>
+              <div className="flex items-start gap-2.5">
+                <div className="shrink-0 mt-0.5">{getCategoryIcon(insight.category)}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h4 className="font-semibold text-foreground">{insight.title}</h4>
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <h4 className="text-sm font-semibold text-foreground truncate">{insight.title}</h4>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/50 shrink-0">
                       {getCategoryLabel(insight.category)}
                     </span>
-                    <ConfidenceBadge confidence={insight.confidence} />
-                    {insight.metric && (
-                      <span className="metric-value text-lg text-foreground ml-auto">
-                        {insight.metric}
-                      </span>
-                    )}
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-2">
-                    {insight.summary}
+                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                    {truncate(insight.summary)}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="source-tag px-2 py-0.5 rounded">{insight.source}</span>
-                    <span>•</span>
-                    <span>{insight.reportType}</span>
+                  <div className="flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground">
+                    <span className="source-tag px-1.5 py-0.5 rounded">{insight.source}</span>
+                    {insight.metric && (
+                      <span className="font-semibold text-foreground text-xs ml-auto">{insight.metric}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -270,9 +284,6 @@ export function ExecutiveSummary() {
           ))}
         </div>
       )}
-
-
-
 
       {/* Financial Position Diagram */}
       {isRealData && <FinancialPositionChart />}
