@@ -377,7 +377,7 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
           <div>
             <CardTitle className="text-lg">All Reports</CardTitle>
             <CardDescription className="mt-1">
-              {deduplicatedReports.length} unique reports • {availableNotIngested} available from APIs • {analyzedCount} analyzed
+              {deduplicatedReports.length} unique reports • {analyzedCount} analyzed{availableNotIngested > 0 ? ` • ${availableNotIngested} API sources not yet fetched` : ''}
               {duplicatesRemoved > 0 && (
                 <span className="text-xs text-muted-foreground ml-2">
                   ({duplicatesRemoved} older versions hidden)
