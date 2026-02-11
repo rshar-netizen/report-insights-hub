@@ -2,15 +2,18 @@ import { useState, useMemo } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
-  Minus,
   Building2,
   BarChart3,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 import { allAvailablePeers } from '@/data/dataSources';
 import { PeerSelector } from './PeerSelector';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { useRealBankMetrics } from '@/hooks/useIngestedReportData';
+import { usePeerMetrics } from '@/hooks/usePeerMetrics';
 
 interface PeerComparisonMetric {
   id: string;
@@ -26,37 +29,22 @@ interface PeerComparisonMetric {
   category: 'capital' | 'profitability' | 'efficiency' | 'risk' | 'liquidity';
 }
 
-// Public reference data for peer banks (from regulatory filings)
-const peerReferenceData: Record<string, Record<string, number>> = {
-  jpmorgan:       { tier1: 15.1, cet1: 13.8, roa: 1.21, roe: 15.2, nim: 2.81, efficiency: 54.2, npl: 0.68, lcr: 112 },
-  bofa:           { tier1: 13.8, cet1: 12.1, roa: 0.98, roe: 11.4, nim: 2.54, efficiency: 62.1, npl: 0.91, lcr: 118 },
-  citi:           { tier1: 14.5, cet1: 13.0, roa: 0.72, roe: 7.8,  nim: 2.48, efficiency: 69.8, npl: 1.12, lcr: 116 },
-  wells:          { tier1: 12.4, cet1: 11.2, roa: 1.05, roe: 12.1, nim: 3.02, efficiency: 67.3, npl: 0.79, lcr: 125 },
-  goldman:        { tier1: 16.2, cet1: 14.8, roa: 0.88, roe: 10.5, nim: 1.92, efficiency: 66.1, npl: 0.42, lcr: 138 },
-  morgan_stanley: { tier1: 15.8, cet1: 14.2, roa: 0.95, roe: 11.2, nim: 1.85, efficiency: 71.2, npl: 0.38, lcr: 145 },
-  usbank:         { tier1: 11.2, cet1: 9.8,  roa: 1.12, roe: 13.8, nim: 2.92, efficiency: 59.2, npl: 0.82, lcr: 108 },
-  pnc:            { tier1: 11.8, cet1: 10.2, roa: 1.08, roe: 12.9, nim: 2.78, efficiency: 60.5, npl: 0.76, lcr: 112 },
-  truist:         { tier1: 10.9, cet1: 9.5,  roa: 0.92, roe: 10.8, nim: 2.98, efficiency: 62.8, npl: 0.88, lcr: 109 },
-  td:             { tier1: 12.8, cet1: 11.5, roa: 0.85, roe: 9.8,  nim: 2.62, efficiency: 64.2, npl: 0.65, lcr: 122 },
-  hsbc:           { tier1: 14.2, cet1: 12.8, roa: 0.78, roe: 8.5,  nim: 2.18, efficiency: 68.5, npl: 0.95, lcr: 132 },
-  mufg:           { tier1: 13.5, cet1: 12.2, roa: 0.82, roe: 9.2,  nim: 2.35, efficiency: 65.8, npl: 0.58, lcr: 128 },
-};
-
 // Metric definitions for mapping real data to peer comparison keys
 const metricDefinitions: {
   key: string;
   label: string;
   category: 'capital' | 'profitability' | 'efficiency' | 'risk' | 'liquidity';
   metricIds: string[]; // matching IDs from useRealBankMetrics
+  peerKey: keyof import('@/hooks/usePeerMetrics').PeerMetricData['metrics'];
 }[] = [
-  { key: 'tier1', label: 'Tier 1 Capital Ratio', category: 'capital', metricIds: ['tier1-capital'] },
-  { key: 'cet1', label: 'CET1 Ratio', category: 'capital', metricIds: ['cet1'] },
-  { key: 'roa', label: 'Return on Assets', category: 'profitability', metricIds: ['roa'] },
-  { key: 'roe', label: 'Return on Equity', category: 'profitability', metricIds: ['roe'] },
-  { key: 'nim', label: 'Net Interest Margin', category: 'profitability', metricIds: ['nim'] },
-  { key: 'efficiency', label: 'Efficiency Ratio', category: 'efficiency', metricIds: ['efficiency'] },
-  { key: 'npl', label: 'NPL Ratio', category: 'risk', metricIds: ['npl'] },
-  { key: 'lcr', label: 'Liquidity Coverage Ratio', category: 'liquidity', metricIds: ['lcr'] },
+  { key: 'tier1', label: 'Tier 1 Capital Ratio', category: 'capital', metricIds: ['tier1-capital'], peerKey: 'tier1' },
+  { key: 'cet1', label: 'CET1 Ratio', category: 'capital', metricIds: ['cet1'], peerKey: 'cet1' },
+  { key: 'roa', label: 'Return on Assets', category: 'profitability', metricIds: ['roa'], peerKey: 'roa' },
+  { key: 'roe', label: 'Return on Equity', category: 'profitability', metricIds: ['roe'], peerKey: 'roe' },
+  { key: 'nim', label: 'Net Interest Margin', category: 'profitability', metricIds: ['nim'], peerKey: 'nim' },
+  { key: 'efficiency', label: 'Efficiency Ratio', category: 'efficiency', metricIds: ['efficiency'], peerKey: 'efficiency' },
+  { key: 'npl', label: 'NPL Ratio', category: 'risk', metricIds: ['npl'], peerKey: 'npl' },
+  { key: 'lcr', label: 'Liquidity Coverage Ratio', category: 'liquidity', metricIds: ['lcr'], peerKey: 'lcr' },
 ];
 
 export function PeerBenchmarking() {
@@ -65,6 +53,20 @@ export function PeerBenchmarking() {
   );
 
   const { metrics: realMetrics, isLoading, hasData, reportingPeriod, institutionName } = useRealBankMetrics();
+  const { peerData, isLoading: isPeerLoading, fetchPeerMetrics, hasFetchedData, lastFetched } = usePeerMetrics();
+
+  // Fetch real peer data from FDIC
+  const handleFetchPeerData = () => {
+    const peers = selectedPeerIds.map(id => {
+      const bank = allAvailablePeers.find(b => b.id === id);
+      return {
+        rssdId: bank?.rssdId || '',
+        name: bank?.shortName || id,
+      };
+    }).filter(p => p.rssdId);
+    
+    fetchPeerMetrics(peers);
+  };
 
   // Build peer comparison metrics using only real Mizuho data
   const peerComparisonMetrics = useMemo<PeerComparisonMetric[]>(() => {
@@ -80,13 +82,14 @@ export function PeerBenchmarking() {
       const mizuhoNumeric = parseFloat(realMetric.value.replace(/[^0-9.-]/g, ''));
       if (isNaN(mizuhoNumeric)) return;
 
-      // Get peer values
+      // Get peer values - use real FDIC data if available, otherwise show N/A
       const peerValues = selectedPeerIds.map(peerId => {
         const bank = allAvailablePeers.find(b => b.id === peerId);
-        const peerVal = peerReferenceData[peerId]?.[def.key];
+        const realPeer = peerData.find(p => p.rssdId === bank?.rssdId);
+        const peerVal = realPeer?.metrics?.[def.peerKey];
         return {
           bankName: bank?.shortName || peerId,
-          value: peerVal !== undefined ? `${peerVal}%` : 'N/A',
+          value: peerVal !== undefined ? `${peerVal.toFixed(2)}%` : 'N/A',
           numeric: peerVal ?? NaN,
         };
       }).filter(p => !isNaN(p.numeric));
@@ -124,7 +127,7 @@ export function PeerBenchmarking() {
     });
 
     return results;
-  }, [realMetrics, selectedPeerIds, hasData]);
+  }, [realMetrics, selectedPeerIds, hasData, peerData]);
 
   const getPercentileColor = (percentile: number) => {
     if (percentile >= 70) return 'text-success';
@@ -187,11 +190,40 @@ export function PeerBenchmarking() {
       </div>
 
       {/* Peer Selector */}
-      <PeerSelector
-        selectedPeerIds={selectedPeerIds}
-        onPeersChange={setSelectedPeerIds}
-      />
-
+      <div className="space-y-4">
+        <PeerSelector
+          selectedPeerIds={selectedPeerIds}
+          onPeersChange={setSelectedPeerIds}
+        />
+        
+        {/* Fetch Real Data Button */}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={handleFetchPeerData}
+            disabled={isPeerLoading || selectedPeerIds.length === 0}
+            variant="outline"
+            className="gap-2"
+          >
+            {isPeerLoading ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Database className="w-4 h-4" />
+            )}
+            {isPeerLoading ? 'Fetching from FDIC...' : 'Fetch Real Peer Data'}
+          </Button>
+          {hasFetchedData && (
+            <Badge variant="secondary" className="text-xs">
+              {peerData.filter(p => !p.error && Object.values(p.metrics).some(v => v !== undefined)).length} peers loaded
+              {lastFetched && ` · ${new Date(lastFetched).toLocaleTimeString()}`}
+            </Badge>
+          )}
+          {!hasFetchedData && !isPeerLoading && (
+            <span className="text-xs text-muted-foreground">
+              Click to fetch real metrics from FDIC for selected peers
+            </span>
+          )}
+        </div>
+      </div>
       {/* No Data State */}
       {!isLoading && !hasData && (
         <div className="bg-muted/30 border border-border rounded-lg p-12 text-center">
@@ -318,8 +350,11 @@ export function PeerBenchmarking() {
       {/* Disclaimer */}
       {hasData && peerComparisonMetrics.length > 0 && (
         <p className="text-xs text-muted-foreground text-center italic">
-          Mizuho values are from ingested regulatory reports. Peer values are reference data from public filings. 
-          Only metrics with real Mizuho data are shown.
+          {institutionName || 'Mizuho'} values are from ingested regulatory reports. 
+          {hasFetchedData 
+            ? 'Peer values are real metrics fetched from FDIC BankFind API.' 
+            : 'Click "Fetch Real Peer Data" to replace placeholder values with live FDIC data.'}
+          {' '}Only metrics with real data are shown.
         </p>
       )}
     </div>

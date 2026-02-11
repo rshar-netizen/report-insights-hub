@@ -2,3 +2,6 @@ project_id = "rrgynlfsjjpobnpzgdiz"
 
 [functions.data-chat]
 verify_jwt = false
+
+[functions.fetch-peer-metrics]
+verify_jwt = false
