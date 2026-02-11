@@ -151,9 +151,8 @@ export function InsightsPanel({ selectedReportId }: InsightsPanelProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+      <div className="text-xs text-muted-foreground px-1">
         <span>{substantiveInsights.length} actionable insights</span>
-        {filteredCount > 0 && <span>{filteredCount} low-substance items filtered</span>}
       </div>
 
       {GROUP_ORDER.map(groupKey => {
