@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Select, 
   SelectContent, 
@@ -13,60 +13,64 @@ import {
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
-  ReferenceLine
+  ResponsiveContainer
 } from 'recharts';
-import { TrendingUp, TrendingDown, ExternalLink, FileText, Calendar, RefreshCw, AlertCircle, Wifi } from 'lucide-react';
-import { metricHistoricalData, MetricHistoricalData } from '@/data/dataSources';
-import { useMetricData, useRefreshMetric, useDataFreshness } from '@/hooks/useRegulatoryData';
+import { TrendingUp, TrendingDown, FileText, Calendar, AlertTriangle } from 'lucide-react';
 import { useIngestedHistoricalData } from '@/hooks/useIngestedReportData';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+
+// Metric metadata (labels, descriptions) — no fake values
+const metricMeta: Record<string, { label: string; description: string; lowerIsBetter?: boolean }> = {
+  nim: { label: 'Net Interest Margin', description: 'Difference between interest income and interest paid, relative to assets.' },
+  roa: { label: 'Return on Assets (ROA)', description: 'Net income as a percentage of average total assets.' },
+  roe: { label: 'Return on Equity (ROE)', description: 'Net income as a percentage of average total equity.' },
+  efficiency: { label: 'Efficiency Ratio', description: 'Non-interest expenses divided by revenue. Lower is better.', lowerIsBetter: true },
+  npl: { label: 'NPL Ratio', description: 'Non-performing loans as a percentage of total loans.', lowerIsBetter: true },
+};
 
 interface MetricTrendTrackerProps {
   className?: string;
-  enableRealTime?: boolean;
 }
 
-export function MetricTrendTracker({ className, enableRealTime = true }: MetricTrendTrackerProps) {
+export function MetricTrendTracker({ className }: MetricTrendTrackerProps) {
+  const { historicalData, isLoading, hasData } = useIngestedHistoricalData();
+
+  // Determine which metrics actually have real data
+  const availableMetrics = useMemo(() => {
+    return Object.keys(historicalData)
+      .filter(key => historicalData[key]?.length > 0 && metricMeta[key])
+      .map(key => ({ id: key, ...metricMeta[key] }));
+  }, [historicalData]);
+
   const [selectedMetric, setSelectedMetric] = useState<string>('nim');
-  const [timeframe, setTimeframe] = useState<'quarterly' | 'yearly'>('quarterly');
-  const [useRealData, setUseRealData] = useState(enableRealTime);
 
-  // Fetch real-time data from APIs
-  const { data: realTimeData, isLoading, isError, error, isFetching } = useMetricData(selectedMetric);
-  const { refresh } = useRefreshMetric();
-  const { isFresh, age } = useDataFreshness(realTimeData?.scrapedAt);
+  // Auto-select first available metric if current selection has no data
+  const activeMetric = useMemo(() => {
+    if (availableMetrics.find(m => m.id === selectedMetric)) return selectedMetric;
+    return availableMetrics[0]?.id || selectedMetric;
+  }, [availableMetrics, selectedMetric]);
 
-  // Fetch ingested report historical data (from FDIC etc.)
-  const { historicalData: ingestedHistorical, hasData: hasIngestedHistory } = useIngestedHistoricalData();
+  const meta = metricMeta[activeMetric];
+  const data = historicalData[activeMetric] || [];
+  const isPositiveGood = !meta?.lowerIsBetter;
 
-  // Fallback to mock data
-  const currentMetric = metricHistoricalData.find(m => m.id === selectedMetric);
-  
-  if (!currentMetric) return null;
-
-  // Priority: 1) Real-time API data, 2) Ingested report historical data, 3) Demo data
-  const hasRealTimeApiData = useRealData && realTimeData?.success && realTimeData.data?.quarterlyData?.length > 0;
-  const hasIngestedData = hasIngestedHistory && ingestedHistorical[selectedMetric]?.length > 0;
-  
-  // Get raw data based on priority
-  let data: { period: string; value: number; reportType: string }[];
-  let dataSourceLabel: string;
-
-  if (hasRealTimeApiData) {
-    const rawRealData = timeframe === 'quarterly' ? realTimeData.data.quarterlyData : realTimeData.data.yearlyData;
-    data = rawRealData.map((d: any) => ({ ...d, reportType: realTimeData.source || 'Live Data' }));
-    dataSourceLabel = 'Live API';
-  } else if (hasIngestedData) {
-    data = ingestedHistorical[selectedMetric];
-    dataSourceLabel = 'Ingested Reports';
-  } else {
-    const fallbackData = timeframe === 'quarterly' 
-      ? currentMetric.quarterlyData 
-      : currentMetric.yearlyData;
-    data = fallbackData;
-    dataSourceLabel = 'Demo Data';
+  // No data state
+  if (!isLoading && (!hasData || availableMetrics.length === 0)) {
+    return (
+      <div className={`space-y-6 ${className}`}>
+        <div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Performance Tracking</h2>
+          <p className="text-sm text-muted-foreground">Quarter-over-quarter self comparison from ingested reports</p>
+        </div>
+        <div className="bg-muted/30 border border-border rounded-lg p-12 text-center">
+          <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-40" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">No Historical Data Available</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Upload and analyze regulatory reports (FDIC Financials, Call Reports) in the Data Ingestion tab 
+            to track performance trends over time.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const latestValue = data[data.length - 1]?.value ?? 0;
@@ -74,23 +78,16 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
   const change = latestValue - previousValue;
   const changePercent = previousValue !== 0 ? ((change / previousValue) * 100).toFixed(2) : '0';
 
-  // Determine if positive change is good based on metric type
-  const isPositiveGood = !['efficiency', 'npl'].includes(selectedMetric);
   const isChangePositive = change > 0;
   const isGoodChange = isPositiveGood ? isChangePositive : !isChangePositive;
 
-  // Calculate min/max for Y-axis with padding
+  // Y-axis bounds
   const values = data.map(d => d.value);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
-  const padding = (maxValue - minValue) * 0.2;
+  const padding = (maxValue - minValue) * 0.2 || 0.5;
   const yMin = Math.max(0, minValue - padding);
   const yMax = maxValue + padding;
-
-  // Get peer median from real data or fallback
-  const peerMedian = hasRealTimeApiData && realTimeData.data.peerMedian 
-    ? realTimeData.data.peerMedian 
-    : currentMetric.peerMedian;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -99,88 +96,24 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-foreground">Performance Tracking</h2>
-            {useRealData && !hasIngestedData && (
-              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                isFresh ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'
-              }`}>
-                <Wifi className="w-3 h-3" />
-                {isLoading ? 'Fetching...' : (isFresh ? 'Live' : `${age}`)}
-              </span>
-            )}
-            {hasIngestedData && (
-              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">
-                <FileText className="w-3 h-3" />
-                Real Data
-              </span>
-            )}
+            <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/20 text-success">
+              <FileText className="w-3 h-3" />
+              Real Data
+            </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            {hasIngestedData
-              ? 'Historical data from ingested regulatory reports'
-              : useRealData 
-                ? 'Real-time data from FFIEC, FRED, SEC EDGAR & FDIC'
-                : 'Quarter-over-quarter and year-over-year self comparison'}
+            Historical data from ingested regulatory reports
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Real-time toggle */}
-          <button
-            onClick={() => setUseRealData(!useRealData)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-all border ${
-              useRealData
-                ? 'bg-primary/20 text-primary border-primary/30'
-                : 'bg-secondary/50 text-muted-foreground border-border hover:text-foreground'
-            }`}
-          >
-            <Wifi className="w-3 h-3" />
-            {useRealData ? 'Real-time' : 'Demo Data'}
-          </button>
-
-          {/* Refresh button */}
-          {useRealData && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => refresh(selectedMetric)}
-              disabled={isFetching}
-              className="h-8 px-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
-            </Button>
-          )}
-
-          {/* Timeframe Toggle */}
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-secondary/50 border border-border">
-            <button
-              onClick={() => setTimeframe('quarterly')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                timeframe === 'quarterly'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Q-o-Q
-            </button>
-            <button
-              onClick={() => setTimeframe('yearly')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
-                timeframe === 'yearly'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              Y-o-Y
-            </button>
-          </div>
-
-          {/* Metric Selector */}
-          <Select value={selectedMetric} onValueChange={setSelectedMetric}>
+          {/* Metric Selector — only metrics with real data */}
+          <Select value={activeMetric} onValueChange={setSelectedMetric}>
             <SelectTrigger className="w-[200px] bg-secondary border-border">
               <SelectValue placeholder="Select metric" />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border z-50">
-              {metricHistoricalData.map(metric => (
+              {availableMetrics.map(metric => (
                 <SelectItem key={metric.id} value={metric.id}>
                   {metric.label}
                 </SelectItem>
@@ -190,63 +123,27 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
         </div>
       </div>
 
-      {/* Error State */}
-      {isError && useRealData && (
-        <div className="glass-card rounded-lg p-4 border-l-4 border-l-destructive bg-destructive/5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-destructive mt-0.5" />
-            <div>
-              <h4 className="font-medium text-foreground">Failed to fetch real-time data</h4>
-              <p className="text-sm text-muted-foreground mt-1">
-                {error?.message || 'Unable to connect to data source. Showing demo data instead.'}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => refresh(selectedMetric)}
-                className="mt-2"
-              >
-                <RefreshCw className="w-3 h-3 mr-1" />
-                Retry
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Chart Card */}
       <div className="glass-card rounded-lg p-6">
         {/* Metric Summary */}
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-foreground mb-1">
-              {currentMetric.label}
+              {meta?.label || activeMetric}
             </h3>
             <p className="text-sm text-muted-foreground max-w-md">
-              {currentMetric.description}
+              {meta?.description}
             </p>
-            {hasRealTimeApiData && realTimeData.source && (
-              <p className="text-xs text-primary mt-1">
-                Source: {realTimeData.source}
-              </p>
-            )}
-            {!hasRealTimeApiData && hasIngestedData && (
-              <p className="text-xs text-primary mt-1">
-                Source: Ingested Reports (FDIC)
-              </p>
-            )}
+            <p className="text-xs text-primary mt-1">
+              Source: Ingested Reports (FDIC)
+            </p>
           </div>
-          <div className="flex items-center gap-4">
-            {isLoading && useRealData ? (
-              <div className="text-right space-y-2">
-                <Skeleton className="h-8 w-24 ml-auto" />
-                <Skeleton className="h-4 w-32 ml-auto" />
-              </div>
-            ) : (
-              <div className="text-right">
-                <div className="metric-value text-3xl text-foreground">
-                  {latestValue.toFixed(2)}%
-                </div>
+          <div className="text-right">
+            <div className="metric-value text-3xl text-foreground">
+              {latestValue.toFixed(2)}%
+            </div>
+            {data.length >= 2 && (
+              <>
                 <div className="flex items-center justify-end gap-1 mt-1">
                   {isGoodChange ? (
                     <TrendingUp className="w-4 h-4 text-success" />
@@ -258,116 +155,67 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  vs {timeframe === 'quarterly' ? 'previous quarter' : 'previous year'}
+                  vs previous quarter
                 </span>
-              </div>
+              </>
             )}
           </div>
         </div>
 
         {/* Chart */}
         <div className="h-[300px] w-full">
-          {isLoading && useRealData ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center space-y-3">
-                <RefreshCw className="w-8 h-8 text-primary animate-spin mx-auto" />
-                <p className="text-sm text-muted-foreground">Fetching real-time data from regulatory sources...</p>
-              </div>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
-                <XAxis 
-                  dataKey="period" 
-                  stroke="hsl(var(--muted-foreground))"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  tickLine={{ stroke: 'hsl(var(--border))' }}
-                />
-                <YAxis 
-                  domain={[yMin, yMax]}
-                  stroke="hsl(var(--muted-foreground))"
-                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                  tickLine={{ stroke: 'hsl(var(--border))' }}
-                  tickFormatter={(value) => `${value.toFixed(1)}%`}
-                />
-                {peerMedian && (
-                  <ReferenceLine 
-                    y={peerMedian} 
-                    stroke="hsl(var(--warning))" 
-                    strokeDasharray="5 5"
-                    label={{ 
-                      value: `Peer Median: ${peerMedian}%`, 
-                      fill: 'hsl(var(--warning))',
-                      fontSize: 11,
-                      position: 'insideTopRight'
-                    }}
-                  />
-                )}
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(222 47% 10%)',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    boxShadow: 'var(--shadow-card)'
-                  }}
-                  labelStyle={{ color: 'hsl(var(--foreground))' }}
-                  itemStyle={{ color: 'hsl(173 80% 45%)' }}
-                  formatter={(value: number) => [`${value.toFixed(2)}%`, currentMetric.label]}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="hsl(173 80% 45%)" 
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(173 80% 45%)', strokeWidth: 2, r: 4 }}
-                  activeDot={{ r: 6, fill: 'hsl(173 80% 55%)' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.5} />
+              <XAxis 
+                dataKey="period" 
+                stroke="hsl(var(--muted-foreground))"
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tickLine={{ stroke: 'hsl(var(--border))' }}
+              />
+              <YAxis 
+                domain={[yMin, yMax]}
+                stroke="hsl(var(--muted-foreground))"
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                tickLine={{ stroke: 'hsl(var(--border))' }}
+                tickFormatter={(value) => `${value.toFixed(1)}%`}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: 'hsl(222 47% 10%)',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  boxShadow: 'var(--shadow-card)'
+                }}
+                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                itemStyle={{ color: 'hsl(173 80% 45%)' }}
+                formatter={(value: number) => [`${value.toFixed(2)}%`, meta?.label || activeMetric]}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="value" 
+                stroke="hsl(173 80% 45%)" 
+                strokeWidth={2}
+                dot={{ fill: 'hsl(173 80% 45%)', strokeWidth: 2, r: 4 }}
+                activeDot={{ r: 6, fill: 'hsl(173 80% 55%)' }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Source Attribution */}
         <div className="mt-6 pt-4 border-t border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">Data Sources</span>
-                {(hasRealTimeApiData || hasIngestedData) && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
-                    {hasRealTimeApiData ? 'Live' : 'Real'}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {currentMetric.sources.map((source, idx) => (
-                  <a 
-                    key={idx}
-                    href={source.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 source-tag px-2 py-1 rounded hover:bg-secondary/80 transition-colors"
-                  >
-                    <span className="text-muted-foreground">{source.name}</span>
-                    <span className="text-muted-foreground/60">•</span>
-                    <span className="text-muted-foreground/80">{source.reportType}</span>
-                    <ExternalLink className="w-3 h-3 text-primary" />
-                  </a>
-                ))}
-              </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Data Sources</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                Real
+              </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar className="w-3.5 h-3.5" />
-              <span>
-                {hasRealTimeApiData 
-                  ? `Scraped: ${new Date(realTimeData.scrapedAt).toLocaleString()}`
-                  : hasIngestedData
-                    ? 'From ingested regulatory reports'
-                    : `Last updated: ${currentMetric.lastUpdated}`
-                }
-              </span>
+              <span>From ingested regulatory reports</span>
             </div>
           </div>
         </div>
@@ -376,65 +224,52 @@ export function MetricTrendTracker({ className, enableRealTime = true }: MetricT
       {/* Quarterly Breakdown Table */}
       <div className="glass-card rounded-lg overflow-hidden">
         <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">
-            {timeframe === 'quarterly' ? 'Quarterly' : 'Yearly'} Breakdown
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">Quarterly Breakdown</h3>
         </div>
         <div className="overflow-x-auto">
-          {isLoading && useRealData ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3, 4].map(i => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="bg-secondary/30">
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Value</th>
-                  <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Change</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Report</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...data].reverse().map((row, idx, arr) => {
-                  const prevRow = arr[idx + 1];
-                  const rowChange = prevRow ? row.value - prevRow.value : 0;
-                  const isRowChangeGood = isPositiveGood ? rowChange > 0 : rowChange < 0;
+          <table className="w-full">
+            <thead>
+              <tr className="bg-secondary/30">
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Value</th>
+                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Change</th>
+                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...data].reverse().map((row, idx, arr) => {
+                const prevRow = arr[idx + 1];
+                const rowChange = prevRow ? row.value - prevRow.value : 0;
+                const isRowChangeGood = isPositiveGood ? rowChange > 0 : rowChange < 0;
 
-                  return (
-                    <tr key={row.period} className="border-t border-border/50 hover:bg-secondary/20 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-foreground">{row.period}</td>
-                      <td className="px-4 py-3 text-sm text-right metric-value text-foreground">
-                        {row.value.toFixed(2)}%
-                      </td>
-                      <td className="px-4 py-3 text-sm text-right">
-                        {prevRow ? (
-                          <span className={`flex items-center justify-end gap-1 ${isRowChangeGood ? 'text-success' : 'text-destructive'}`}>
-                            {rowChange > 0 ? '+' : ''}{rowChange.toFixed(2)}%
-                            {isRowChangeGood ? (
-                              <TrendingUp className="w-3 h-3" />
-                            ) : (
-                              <TrendingDown className="w-3 h-3" />
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {row.reportType}
-                        {hasRealTimeApiData && (
-                          <span className="ml-1 text-primary">(Live)</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+                return (
+                  <tr key={row.period} className="border-t border-border/50 hover:bg-secondary/20 transition-colors">
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">{row.period}</td>
+                    <td className="px-4 py-3 text-sm text-right metric-value text-foreground">
+                      {row.value.toFixed(2)}%
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">
+                      {prevRow ? (
+                        <span className={`flex items-center justify-end gap-1 ${isRowChangeGood ? 'text-success' : 'text-destructive'}`}>
+                          {rowChange > 0 ? '+' : ''}{rowChange.toFixed(2)}%
+                          {isRowChangeGood ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {row.reportType}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
