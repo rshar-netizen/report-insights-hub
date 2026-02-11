@@ -100,9 +100,22 @@ For each report, provide insights in these categories (only if substantive data 
 4. TRENDS: Concrete period-over-period changes with numbers
 5. RECOMMENDATIONS: Actionable steps tied to specific findings
 
-BALANCE SHEET EXTRACTION (CRITICAL):
-For UBPR, Call Reports, and FRY-9C, you MUST extract actual dollar amounts for balance sheet line items into the "metrics" object. 
-Look for the Balance Sheet section and extract these fields (values should be in raw dollars, NOT thousands or millions — convert if the report shows values in thousands by multiplying by 1000):
+BALANCE SHEET & RATIO EXTRACTION (CRITICAL):
+For UBPR, Call Reports, and FRY-9C, you MUST extract all available financial ratios AND dollar amounts into the "metrics" object.
+
+KEY RATIOS to extract (as percentages, e.g., 14.8 for 14.8%):
+- "tier1_capital_ratio": Tier 1 risk-based capital ratio
+- "cet1_ratio": Common Equity Tier 1 ratio
+- "total_capital_ratio": Total risk-based capital ratio
+- "tier1_leverage_ratio": Tier 1 leverage ratio
+- "roa": Return on Assets (annualized)
+- "roe": Return on Equity (annualized)
+- "net_interest_margin": Net Interest Margin
+- "efficiency_ratio": Efficiency ratio (non-interest expense / revenue). This is commonly found in UBPR or income statement sections.
+- "npl_ratio": Non-performing loans ratio (noncurrent loans / total loans)
+- "lcr": Liquidity Coverage Ratio (if available)
+
+BALANCE SHEET amounts (in raw dollars, NOT thousands/millions — convert if needed):
 - "total_loans": Total loans and leases
 - "total_securities": Total securities (investment securities)
 - "cash_and_due": Cash and balances due from depository institutions
@@ -116,7 +129,9 @@ Look for the Balance Sheet section and extract these fields (values should be in
 - "total_liabilities": Total liabilities
 - "total_assets": Total assets
 
-These are ACTUAL reported dollar amounts from the balance sheet, not ratios. Extract them precisely.
+If the report contains non-interest expense, net interest income, and non-interest income but not an explicit efficiency ratio, CALCULATE it as: efficiency_ratio = (non-interest expense / (net interest income + non-interest income)) * 100.
+
+These are ACTUAL reported values. Extract them precisely.
 
 ADDITIONAL RULES:
 - Focus on data from 2015 onwards. Do NOT generate insights about trends or data exclusively before 2015.
@@ -144,6 +159,14 @@ Format your response as JSON with this structure:
       "metrics": {
         "tier1_capital_ratio": 14.8, 
         "cet1_ratio": 13.2,
+        "total_capital_ratio": 16.5,
+        "tier1_leverage_ratio": 8.2,
+        "roa": 1.05,
+        "roe": 10.8,
+        "net_interest_margin": 2.45,
+        "efficiency_ratio": 58.3,
+        "npl_ratio": 0.65,
+        "lcr": 135.0,
         "total_assets": 24500000000,
         "total_loans": 11000000000,
         "total_securities": 5200000000,
