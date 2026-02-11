@@ -499,13 +499,26 @@ export function ReportsTable({ reports, isLoading, onAnalyze, rssdId = '623806' 
                               Analyze
                             </Button>
                           )}
-                          {report.status === 'error' && report.error_message && (
-                            <span 
-                              className="text-xs text-destructive cursor-help"
-                              title={report.error_message}
+                          {report.status === 'analyzed' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onAnalyze(report)}
+                              title="Re-analyze with updated AI"
                             >
-                              View Error
-                            </span>
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              Re-analyze
+                            </Button>
+                          )}
+                          {report.status === 'error' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onAnalyze(report)}
+                            >
+                              <RefreshCw className="w-3 h-3 mr-1" />
+                              Retry
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
