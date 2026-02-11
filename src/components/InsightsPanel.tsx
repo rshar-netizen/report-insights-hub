@@ -28,7 +28,7 @@ const GROUP_CONFIG = {
 
 type GroupKey = keyof typeof GROUP_CONFIG;
 
-const GROUP_ORDER: GroupKey[] = ['summary', 'metric_extraction', 'risk_assessment', 'trend_analysis', 'recommendation'];
+const GROUP_ORDER: GroupKey[] = ['metric_extraction', 'risk_assessment', 'trend_analysis', 'recommendation'];
 
 const CATEGORY_COLORS: Record<string, string> = {
   capital: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
