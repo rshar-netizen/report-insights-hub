@@ -149,7 +149,8 @@ export const dataIngestionApi = {
       title: insight.title,
       content: insight.content,
       confidence_score: insight.confidence,
-      metrics: insight.metrics ? JSON.parse(JSON.stringify(insight.metrics)) : null
+      metrics: insight.metrics ? JSON.parse(JSON.stringify(insight.metrics)) : null,
+      sources: (insight as any).sources ? JSON.parse(JSON.stringify((insight as any).sources)) : null
     }));
 
     const { error } = await supabase
@@ -285,6 +286,28 @@ export const dataIngestionApi = {
     }
 
     return data;
+  },
+
+  // Update insight status (accept/reject)
+  async updateInsightStatus(id: string, status: string): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase
+      .from('report_insights')
+      .update({ status } as any)
+      .eq('id', id);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  },
+
+  // Delete an insight
+  async deleteInsight(id: string): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabase
+      .from('report_insights')
+      .delete()
+      .eq('id', id);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
   },
 
   // Chat with data
