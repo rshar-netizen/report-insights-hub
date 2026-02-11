@@ -2,6 +2,7 @@ import { ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, XCircle, ExternalLink,
 import { BankMetric } from '@/data/dataSources';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // Metric educational reference data
 const metricReference: Record<string, { definition: string; industryStandard: string; regulatoryBenchmark: string }> = {
@@ -112,29 +113,27 @@ export function BankMetricCard({ metric, isRealTime = false }: BankMetricCardPro
             {metric.label}
           </span>
           {metricReference[metric.label] && (
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help">
-                    <Info className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="start" className="max-w-sm p-3 space-y-2">
-                  <div>
-                    <p className="text-xs font-semibold text-foreground mb-0.5">Definition</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{metricReference[metric.label].definition}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground mb-0.5">Industry Standard</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{metricReference[metric.label].industryStandard}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground mb-0.5">Regulatory Benchmark</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{metricReference[metric.label].regulatoryBenchmark}</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button type="button" className="cursor-help focus:outline-none">
+                  <Info className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary transition-colors" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="start" className="max-w-sm p-3 space-y-2 z-[100]">
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-0.5">Definition</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{metricReference[metric.label].definition}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-0.5">Industry Standard</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{metricReference[metric.label].industryStandard}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground mb-0.5">Regulatory Benchmark</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{metricReference[metric.label].regulatoryBenchmark}</p>
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
           {getStatusIcon()}
         </div>
