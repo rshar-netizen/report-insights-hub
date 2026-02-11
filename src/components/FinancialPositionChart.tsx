@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, 
-  ResponsiveContainer, PieChart, Pie, Legend
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer
 } from 'recharts';
-import { Info, Building2, Loader2, FileText } from 'lucide-react';
+import { Info, Loader2, FileText } from 'lucide-react';
 import { useAllReportMetrics } from '@/hooks/useIngestedReportData';
 
 interface BalanceSheetItem {
@@ -168,9 +168,7 @@ export function FinancialPositionChart() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Balance Sheet Bar Chart */}
-        <div className="lg:col-span-2 glass-card rounded-lg p-5 border border-border">
+      <div className="glass-card rounded-lg p-5 border border-border">
           <h3 className="text-sm font-semibold text-foreground mb-4">Assets vs Liabilities & Equity</h3>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -206,68 +204,25 @@ export function FinancialPositionChart() {
           </div>
         </div>
 
-        {/* Capital Structure */}
-        <div className="glass-card rounded-lg p-5 border border-border">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Capital Structure</h3>
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={capitalPieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {capitalPieData.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Capital ratios */}
-          <div className="space-y-2 mt-2">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">CET1 Ratio</span>
-              <span className="font-semibold text-foreground">{capitalBreakdown.cet1Ratio.toFixed(2)}%</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Tier 1 Ratio</span>
-              <span className="font-semibold text-foreground">{capitalBreakdown.tier1Ratio.toFixed(2)}%</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Total Capital Ratio</span>
-              <span className="font-semibold text-foreground">{capitalBreakdown.totalCapitalRatio.toFixed(2)}%</span>
+      {/* CET1 = Tier1 explanation */}
+      {capitalBreakdown.cet1Ratio === capitalBreakdown.tier1Ratio && capitalBreakdown.cet1Ratio > 0 && (
+        <div className="p-3 rounded-md bg-primary/5 border border-primary/10">
+          <div className="flex gap-2 text-xs">
+            <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-foreground mb-1">Why CET1 = Tier 1 at {capitalBreakdown.cet1Ratio.toFixed(2)}%?</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Mizuho holds <strong>no Additional Tier 1 (AT1) capital</strong> — no preferred stock or contingent convertibles. 
+                All Tier 1 capital is Common Equity, which is typical for foreign bank subsidiaries funded purely by the parent.
+              </p>
             </div>
           </div>
-
-          {/* CET1 = Tier1 explanation */}
-          {capitalBreakdown.cet1Ratio === capitalBreakdown.tier1Ratio && capitalBreakdown.cet1Ratio > 0 && (
-            <div className="mt-4 p-3 rounded-md bg-primary/5 border border-primary/10">
-              <div className="flex gap-2 text-xs">
-                <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-medium text-foreground mb-1">Why CET1 = Tier 1?</p>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Mizuho holds <strong>no Additional Tier 1 (AT1) capital</strong> — no preferred stock or contingent convertibles. 
-                    All Tier 1 capital is Common Equity, which is typical for foreign bank subsidiaries funded purely by the parent.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       <p className="text-xs text-muted-foreground italic">
-        Note: Asset and liability sub-categories are estimated based on typical wholesale bank structures. 
-        Capital figures are derived from reported ratios. Upload detailed Call Report schedules for exact breakdowns.
+        Note: Total assets ({formatCurrency(totalAssets)}) and capital ratios are from ingested reports. 
+        Sub-category splits (loans, deposits, etc.) are estimated — upload Schedule RC for exact line-item breakdowns.
       </p>
     </div>
   );
