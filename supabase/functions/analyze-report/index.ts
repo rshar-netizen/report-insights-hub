@@ -50,6 +50,13 @@ For each report, provide insights in these categories (only if substantive data 
 4. TRENDS: Concrete period-over-period changes with numbers
 5. RECOMMENDATIONS: Actionable steps tied to specific findings
 
+ADDITIONAL RULES:
+- Focus on data from 2015 onwards. Do NOT generate insights about trends or data exclusively before 2015.
+- For EACH insight, include a "sources" object with:
+  - "reference": A specific location in the report (e.g., "Page 3", "Schedule RC-R", "Table 4.1")
+  - "section": The report section name (e.g., "Interest Income", "Capital Adequacy", "Deposit Composition")
+  If you cannot determine the exact page/section, provide the most specific reference you can (e.g., "Balance Sheet section", "Income Statement").
+
 Format your response as JSON with this structure:
 {
   "insights": [
@@ -58,6 +65,7 @@ Format your response as JSON with this structure:
       "category": "general",
       "title": "Descriptive Title With Key Finding",
       "content": "Substantive analysis with specific numbers...",
+      "sources": {"reference": "Page 1-2", "section": "Executive Overview"},
       "confidence": 0.95
     },
     {
@@ -66,6 +74,7 @@ Format your response as JSON with this structure:
       "title": "Strong Capital Position at 14.8% Tier 1",
       "content": "Detailed analysis with extracted values...",
       "metrics": {"tier1_ratio": 14.8, "cet1_ratio": 13.2},
+      "sources": {"reference": "Schedule RC-R", "section": "Capital Adequacy"},
       "confidence": 0.9
     }
   ]
