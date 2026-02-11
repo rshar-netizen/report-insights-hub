@@ -16,6 +16,7 @@ import { ConfidenceBadge } from './ConfidenceBadge';
 import { Badge } from '@/components/ui/badge';
 import { useAllMetrics, useDataFreshness } from '@/hooks/useRegulatoryData';
 import { useRealBankMetrics, useRealExecutiveInsights, ReportCitation } from '@/hooks/useIngestedReportData';
+import { FinancialPositionChart } from './FinancialPositionChart';
 import { useToast } from '@/hooks/use-toast';
 
 export function ExecutiveSummary() {
@@ -272,6 +273,9 @@ export function ExecutiveSummary() {
 
 
 
+
+      {/* Financial Position Diagram */}
+      {isRealData && <FinancialPositionChart />}
 
       {/* Performance Tracking - Q-o-Q and Y-o-Y */}
       <MetricTrendTracker />
