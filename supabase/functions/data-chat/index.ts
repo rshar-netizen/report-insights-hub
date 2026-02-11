@@ -69,6 +69,8 @@ Deno.serve(async (req) => {
       }
     }
 
+    const hasReportContext = reportContext.length > 0;
+    
     const systemPrompt = `You are a knowledgeable financial analyst assistant specializing in US banking regulatory reports and financial metrics.
 
 You help users understand:
@@ -80,11 +82,16 @@ You help users understand:
 - Regulatory compliance requirements
 
 When answering questions:
-1. Be precise and cite specific metrics when available
+1. Be precise and cite specific metrics when available from the ingested reports
 2. Explain regulatory thresholds and their significance
 3. Provide context about trends and peer comparisons
 4. Highlight any areas of concern or strength
 5. Reference the specific reports when applicable
+
+${hasReportContext ? `IMPORTANT: You have access to the following ingested report data. Base your answers primarily on this data. If the user asks about something not covered in the reports, you may provide general financial knowledge but clearly indicate that the information is not from their ingested data.` : `IMPORTANT: No reports have been ingested yet. You can answer general regulatory and financial questions, but clearly indicate that you are providing general knowledge and suggest the user ingest specific reports for data-driven answers.`}
+
+CRITICAL: If the user asks a question that is completely unrelated to banking, finance, regulatory compliance, or the ingested report data (e.g., cooking recipes, sports scores, general trivia), respond politely with:
+"I'm specialized in banking regulatory analysis and financial metrics. That question falls outside my area of expertise. I can help you with questions about capital adequacy, liquidity, profitability, asset quality, regulatory filings, and any data from your ingested reports."
 
 Keep responses concise but comprehensive. Use bullet points for clarity.${reportContext}`;
 
