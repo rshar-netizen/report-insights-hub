@@ -191,13 +191,11 @@ export function FinancialPositionChart() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Financial Position</h2>
-          <p className="text-sm text-muted-foreground">
-            Balance sheet structure — Total Assets: {formatCurrency(totalAssets)}
-          </p>
-        </div>
+      <div>
+        <h2 className="text-xl font-bold text-foreground">Financial Position</h2>
+        <p className="text-sm text-muted-foreground">
+          Assets vs Liabilities & Equity breakdown
+        </p>
       </div>
 
       <div className="glass-card rounded-lg p-5 border border-border">
