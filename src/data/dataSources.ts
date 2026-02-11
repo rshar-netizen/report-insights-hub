@@ -69,6 +69,7 @@ export interface BankMetric {
     min?: number;
     max?: number;
     status: 'good' | 'warning' | 'critical';
+    context?: string;
   };
 }
 

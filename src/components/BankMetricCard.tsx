@@ -1,6 +1,7 @@
 import { ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Wifi } from 'lucide-react';
 import { BankMetric } from '@/data/dataSources';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface BankMetricCardProps {
   metric: BankMetric;
@@ -11,16 +12,37 @@ export function BankMetricCard({ metric, isRealTime = false }: BankMetricCardPro
   const getStatusIcon = () => {
     if (!metric.threshold) return null;
     
-    switch (metric.threshold.status) {
-      case 'good':
-        return <CheckCircle2 className="w-4 h-4 text-success" />;
-      case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-warning" />;
-      case 'critical':
-        return <XCircle className="w-4 h-4 text-destructive" />;
-      default:
-        return null;
+    const icon = (() => {
+      switch (metric.threshold.status) {
+        case 'good':
+          return <CheckCircle2 className="w-4 h-4 text-success" />;
+        case 'warning':
+          return <AlertTriangle className="w-4 h-4 text-warning" />;
+        case 'critical':
+          return <XCircle className="w-4 h-4 text-destructive" />;
+        default:
+          return null;
+      }
+    })();
+
+    if (!icon) return null;
+
+    if (metric.threshold.context) {
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-help">{icon}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs text-xs">
+              {metric.threshold.context}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
     }
+
+    return icon;
   };
 
   const getStatusBorder = () => {
