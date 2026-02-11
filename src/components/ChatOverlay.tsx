@@ -1,21 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { 
-  Send, 
-  Sparkles, 
-  MessageSquare, 
-  X, 
-  Minimize2 
+import { useQuery } from '@tanstack/react-query';
+import {
+  Send,
+  Sparkles,
+  MessageSquare,
+  FileText,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
 import { ChatMessage } from './ChatMessage';
-import {
-  ChatMessage as ChatMessageType,
-  executiveSummaryQuestions,
-  peerBenchmarkingQuestions,
-  sampleResponses,
-} from '@/data/dataSources';
+import { ChatMessage as ChatMessageType } from '@/data/dataSources';
+import { dataIngestionApi, IngestedReport } from '@/lib/api/dataIngestion';
 
 interface ChatOverlayProps {
   isOpen: boolean;
@@ -23,17 +21,70 @@ interface ChatOverlayProps {
   activeContext: 'executive' | 'peer' | 'ingestion';
 }
 
+function generateSuggestedQuestions(
+  reports: IngestedReport[],
+  activeContext: string
+): string[] {
+  const analyzed = reports.filter((r) => r.status === 'analyzed');
+
+  if (analyzed.length === 0) {
+    // Fallback questions based on context
+    if (activeContext === 'peer') {
+      return [
+        'How does our efficiency ratio compare to G-SIB peers?',
+        'Which peers have the strongest capital positions?',
+        'Compare our NIM trend to peers',
+      ];
+    }
+    return [
+      'What are the key capital adequacy metrics?',
+      'Summarize the latest regulatory filing highlights',
+      'What liquidity risks should we monitor?',
+    ];
+  }
+
+  const questions: string[] = [];
+  const reportTypes = [...new Set(analyzed.map((r) => r.report_type))];
+  const institutions = [...new Set(analyzed.map((r) => r.institution_name).filter(Boolean))];
+
+  if (reportTypes.includes('Call Report')) {
+    questions.push('What are the key takeaways from the latest Call Report?');
+  }
+  if (reportTypes.includes('FRY-9C')) {
+    questions.push('Summarize capital adequacy from the FRY-9C filing');
+  }
+  if (reportTypes.includes('UBPR')) {
+    questions.push('What profitability trends does the UBPR show?');
+  }
+  if (institutions.length > 0) {
+    questions.push(`What are the main risks identified for ${institutions[0]}?`);
+  }
+
+  // Fill remaining slots with generic report-aware questions
+  if (questions.length < 3) {
+    questions.push(`Summarize key findings across all ${analyzed.length} analyzed reports`);
+  }
+  if (questions.length < 3) {
+    questions.push('What metrics require immediate attention?');
+  }
+
+  return questions.slice(0, 3);
+}
+
 export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const contextQuestions = activeContext === 'executive' 
-    ? executiveSummaryQuestions 
-    : activeContext === 'peer'
-    ? peerBenchmarkingQuestions
-    : executiveSummaryQuestions;
+  const { data: reports = [] } = useQuery({
+    queryKey: ['ingested-reports'],
+    queryFn: () => dataIngestionApi.getReports(),
+  });
+
+  const analyzedReports = reports.filter((r) => r.status === 'analyzed');
+  const reportIds = analyzedReports.map((r) => r.id);
+  const suggestedQuestions = generateSuggestedQuestions(reports, activeContext);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -43,33 +94,8 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
     scrollToBottom();
   }, [messages]);
 
-  const getResponse = (question: string) => {
-    const lowerQuestion = question.toLowerCase();
-    
-    if (lowerQuestion.includes('nim') || lowerQuestion.includes('net interest margin') || lowerQuestion.includes('compression')) {
-      return sampleResponses['nim'];
-    }
-    if (lowerQuestion.includes('capital') || lowerQuestion.includes('tier 1') || lowerQuestion.includes('stress')) {
-      return sampleResponses['capital'];
-    }
-    if (lowerQuestion.includes('cre') || lowerQuestion.includes('office') || lowerQuestion.includes('real estate')) {
-      return sampleResponses['cre'];
-    }
-    if (lowerQuestion.includes('fry-9c') || lowerQuestion.includes('filing') || lowerQuestion.includes('fry9c')) {
-      return sampleResponses['fry9c'];
-    }
-    if (lowerQuestion.includes('efficiency') || lowerQuestion.includes('cost')) {
-      return sampleResponses['efficiency'];
-    }
-    if (lowerQuestion.includes('peer') || lowerQuestion.includes('compare') || lowerQuestion.includes('benchmark')) {
-      return sampleResponses['peer'];
-    }
-    
-    return sampleResponses['default'];
-  };
-
   const handleSubmit = async (question: string) => {
-    if (!question.trim()) return;
+    if (!question.trim() || isStreaming) return;
 
     const userMessage: ChatMessageType = {
       id: Date.now().toString(),
@@ -80,22 +106,62 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setIsTyping(true);
+    setIsStreaming(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    let assistantContent = '';
+    const allMessages = [...messages, userMessage];
 
-    const response = getResponse(question);
-    
-    const assistantMessage: ChatMessageType = {
-      id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: response.content,
-      timestamp: new Date(),
-      sources: response.sources,
+    const upsertAssistant = (chunk: string) => {
+      assistantContent += chunk;
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last?.role === 'assistant' && last.id === 'streaming') {
+          return prev.map((m, i) =>
+            i === prev.length - 1 ? { ...m, content: assistantContent } : m
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: 'streaming',
+            role: 'assistant' as const,
+            content: assistantContent,
+            timestamp: new Date(),
+          },
+        ];
+      });
     };
 
-    setMessages((prev) => [...prev, assistantMessage]);
-    setIsTyping(false);
+    try {
+      await dataIngestionApi.streamChat(
+        allMessages.map((m) => ({ role: m.role, content: m.content })),
+        reportIds,
+        upsertAssistant,
+        () => {
+          // Finalize the streaming message with a real ID
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === 'streaming' ? { ...m, id: Date.now().toString() } : m
+            )
+          );
+          setIsStreaming(false);
+        }
+      );
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMsg =
+        error instanceof Error ? error.message : 'Failed to get response';
+      setMessages((prev) => [
+        ...prev.filter((m) => m.id !== 'streaming'),
+        {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `⚠️ ${errorMsg}. Please try again.`,
+          timestamp: new Date(),
+        },
+      ]);
+      setIsStreaming(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -107,8 +173,8 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent 
-        side="right" 
+      <SheetContent
+        side="right"
         className="w-full sm:max-w-xl p-0 flex flex-col bg-background border-l border-border"
       >
         {/* Header */}
@@ -122,28 +188,42 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
                 <SheetTitle className="text-base font-semibold text-foreground">
                   RegInsight Assistant
                 </SheetTitle>
-                <p className="text-xs text-muted-foreground">
-                  {activeContext === 'executive' ? 'Executive Summary Context' : activeContext === 'peer' ? 'Peer Benchmarking Context' : 'Data Ingestion Context'}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    {activeContext === 'executive'
+                      ? 'Executive Summary'
+                      : activeContext === 'peer'
+                      ? 'Peer Benchmarking'
+                      : 'Data Ingestion'}
+                  </p>
+                  {analyzedReports.length > 0 && (
+                    <Badge variant="secondary" className="text-xs py-0 px-1.5">
+                      <FileText className="w-3 h-3 mr-1" />
+                      {analyzedReports.length} report{analyzedReports.length !== 1 ? 's' : ''}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </SheetHeader>
 
-        {/* Example Questions */}
+        {/* Suggested Questions */}
         <div className="border-b border-border px-4 py-3 bg-card/30">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-3 h-3 text-primary" />
             <span className="text-xs font-medium text-muted-foreground">
-              Suggested questions
+              {analyzedReports.length > 0
+                ? 'Questions based on your reports'
+                : 'Suggested questions'}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {contextQuestions.slice(0, 3).map((question, idx) => (
+            {suggestedQuestions.map((question, idx) => (
               <button
                 key={idx}
                 onClick={() => handleSubmit(question)}
-                disabled={isTyping}
+                disabled={isStreaming}
                 className="glass-card text-left px-2.5 py-1.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="group-hover:text-primary transition-colors line-clamp-1">
@@ -162,19 +242,28 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
                 <MessageSquare className="w-7 h-7 text-primary" />
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">
-                Ask About {activeContext === 'executive' ? 'Mizuho Metrics' : 'Peer Comparison'}
+                Ask About Your Data
               </h3>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Get insights from FFIEC, FRED, and other federal regulatory sources.
-                Click a suggested question or type your own.
+                {analyzedReports.length > 0
+                  ? `I have access to ${analyzedReports.length} analyzed report${analyzedReports.length !== 1 ? 's' : ''}. Ask me anything about the data, metrics, or regulatory insights.`
+                  : 'Ingest reports in the Data Ingestion tab, and I\'ll answer questions based on your actual data. You can also ask general regulatory questions.'}
               </p>
+              {analyzedReports.length === 0 && (
+                <div className="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/50 border border-border">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground">
+                    No reports ingested yet. Responses will be based on general financial knowledge.
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <>
               {messages.map((message) => (
                 <ChatMessage key={message.id} message={message} />
               ))}
-              {isTyping && (
+              {isStreaming && messages[messages.length - 1]?.role === 'user' && (
                 <div className="flex gap-3 animate-fade-in">
                   <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                     <div className="flex gap-1">
@@ -202,21 +291,27 @@ export function ChatOverlay({ isOpen, onClose, activeContext }: ChatOverlayProps
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about metrics, filings, or peer comparison..."
+              placeholder={
+                analyzedReports.length > 0
+                  ? 'Ask about your ingested reports, metrics, or filings...'
+                  : 'Ask about regulatory metrics, filings, or peer comparison...'
+              }
               className="min-h-[50px] max-h-[120px] pr-12 resize-none bg-secondary/50 border-border focus:border-primary/50 text-foreground placeholder:text-muted-foreground text-sm"
-              disabled={isTyping}
+              disabled={isStreaming}
             />
             <Button
               size="icon"
               onClick={() => handleSubmit(input)}
-              disabled={!input.trim() || isTyping}
+              disabled={!input.trim() || isStreaming}
               className="absolute right-2 bottom-2 h-8 w-8 bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <Send className="w-4 h-4" />
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Powered by FFIEC • FRED • CFPB • NIC • SEC
+            {analyzedReports.length > 0
+              ? `Powered by AI • ${analyzedReports.length} report${analyzedReports.length !== 1 ? 's' : ''} in context`
+              : 'Powered by FFIEC • FRED • CFPB • NIC • SEC'}
           </p>
         </div>
       </SheetContent>
