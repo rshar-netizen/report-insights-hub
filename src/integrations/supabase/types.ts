@@ -154,6 +154,7 @@ export type Database = {
           metrics: Json | null
           report_id: string | null
           sources: Json | null
+          status: string
           title: string
         }
         Insert: {
@@ -166,6 +167,7 @@ export type Database = {
           metrics?: Json | null
           report_id?: string | null
           sources?: Json | null
+          status?: string
           title: string
         }
         Update: {
@@ -178,6 +180,7 @@ export type Database = {
           metrics?: Json | null
           report_id?: string | null
           sources?: Json | null
+          status?: string
           title?: string
         }
         Relationships: [
