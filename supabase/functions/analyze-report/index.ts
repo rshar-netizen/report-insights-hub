@@ -50,6 +50,24 @@ For each report, provide insights in these categories (only if substantive data 
 4. TRENDS: Concrete period-over-period changes with numbers
 5. RECOMMENDATIONS: Actionable steps tied to specific findings
 
+BALANCE SHEET EXTRACTION (CRITICAL):
+For UBPR, Call Reports, and FRY-9C, you MUST extract actual dollar amounts for balance sheet line items into the "metrics" object. 
+Look for the Balance Sheet section and extract these fields (values should be in raw dollars, NOT thousands or millions — convert if the report shows values in thousands by multiplying by 1000):
+- "total_loans": Total loans and leases
+- "total_securities": Total securities (investment securities)
+- "cash_and_due": Cash and balances due from depository institutions
+- "trading_assets": Trading assets (if applicable)
+- "other_assets": Other assets / intangibles / all remaining asset categories
+- "total_deposits": Total deposits
+- "total_borrowings": Total borrowings (fed funds, repos, FHLB, other borrowed money)
+- "subordinated_debt": Subordinated notes and debentures
+- "other_liabilities": Other liabilities
+- "total_equity": Total equity capital
+- "total_liabilities": Total liabilities
+- "total_assets": Total assets
+
+These are ACTUAL reported dollar amounts from the balance sheet, not ratios. Extract them precisely.
+
 ADDITIONAL RULES:
 - Focus on data from 2015 onwards. Do NOT generate insights about trends or data exclusively before 2015.
 - For EACH insight, include a "sources" object with:
@@ -73,8 +91,18 @@ Format your response as JSON with this structure:
       "category": "capital",
       "title": "Strong Capital Position at 14.8% Tier 1",
       "content": "Detailed analysis with extracted values...",
-      "metrics": {"tier1_ratio": 14.8, "cet1_ratio": 13.2},
-      "sources": {"reference": "Schedule RC-R", "section": "Capital Adequacy"},
+      "metrics": {
+        "tier1_capital_ratio": 14.8, 
+        "cet1_ratio": 13.2,
+        "total_assets": 24500000000,
+        "total_loans": 11000000000,
+        "total_securities": 5200000000,
+        "total_deposits": 15800000000,
+        "total_equity": 2800000000,
+        "total_borrowings": 3200000000,
+        "total_liabilities": 21700000000
+      },
+      "sources": {"reference": "Schedule RC", "section": "Balance Sheet"},
       "confidence": 0.9
     }
   ]

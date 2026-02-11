@@ -17,6 +17,18 @@ interface ExtractedMetrics {
   npl_ratio?: number;
   lcr?: number;
   total_assets?: number;
+  // Balance sheet line items (actual dollar amounts)
+  total_loans?: number;
+  total_securities?: number;
+  cash_and_due?: number;
+  trading_assets?: number;
+  other_assets?: number;
+  total_deposits?: number;
+  total_borrowings?: number;
+  subordinated_debt?: number;
+  other_liabilities?: number;
+  total_equity?: number;
+  total_liabilities?: number;
 }
 
 interface ReportInsight {
