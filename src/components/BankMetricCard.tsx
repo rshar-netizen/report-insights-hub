@@ -46,8 +46,22 @@ const metricReference: Record<string, { definition: string; industryStandard: st
     industryStandard: 'Most large banks hold 110%–150%. Excess liquidity buffers are common post-2008.',
     regulatoryBenchmark: 'Basel III minimum: ≥100%. U.S. G-SIBs subject to full LCR requirement.',
   },
+  'Tier 1 Leverage Ratio': {
+    definition: 'Tier 1 capital divided by average total consolidated assets (not risk-weighted). A simpler measure of capital adequacy.',
+    industryStandard: 'Large banks typically maintain 7%–10%. Community banks: 8%–12%.',
+    regulatoryBenchmark: 'Well-capitalized: ≥5%. Adequately capitalized: ≥4%. Supplementary leverage ratio for G-SIBs: ≥3%.',
+  },
+  'Total Capital Ratio': {
+    definition: 'Total regulatory capital (Tier 1 + Tier 2) as a percentage of risk-weighted assets. The broadest measure of a bank\'s capital cushion.',
+    industryStandard: 'G-SIBs typically maintain 15%–19%. U.S. bank median: ~13%–16%.',
+    regulatoryBenchmark: 'Well-capitalized: ≥10%. Adequately capitalized: ≥8%. Basel III minimum: 8%.',
+  },
+  'Total Assets': {
+    definition: 'The sum of all assets held by the institution, including loans, securities, cash, and other assets. Indicates the overall size of the bank.',
+    industryStandard: 'G-SIBs: >$250B. Large regionals: $50B–$250B. Community banks: <$10B.',
+    regulatoryBenchmark: 'Banks with ≥$250B in total assets are subject to enhanced prudential standards (Category I–III). $100B+ triggers heightened supervision.',
+  },
 };
-
 interface BankMetricCardProps {
   metric: BankMetric;
   isRealTime?: boolean;
