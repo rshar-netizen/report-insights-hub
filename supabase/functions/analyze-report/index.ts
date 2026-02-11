@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.94.0';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -5,7 +7,8 @@ const corsHeaders = {
 
 interface AnalyzeRequest {
   reportId: string;
-  content: string;
+  content?: string;
+  filePath?: string;
   reportType: string;
   institutionName?: string;
   reportingPeriod?: string;
@@ -17,7 +20,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { reportId, content, reportType, institutionName, reportingPeriod } = await req.json() as AnalyzeRequest;
+    const { reportId, content: providedContent, filePath, reportType, institutionName, reportingPeriod } = await req.json() as AnalyzeRequest;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -28,7 +31,54 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Analyzing report: ${reportId}, type: ${reportType}`);
+    // Resolve content: use provided content, or read from storage
+    let content = providedContent || '';
+    
+    if ((!content || content.length < 100) && filePath) {
+      console.log(`Reading file from storage: ${filePath}`);
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const { data: fileData, error: fileError } = await supabase.storage
+        .from('reports')
+        .download(filePath);
+      
+      if (fileError) {
+        console.error('Failed to download file from storage:', fileError);
+        return new Response(
+          JSON.stringify({ success: false, error: `Could not read file from storage: ${fileError.message}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Extract text from the file
+      if (filePath.endsWith('.pdf')) {
+        // For PDFs, convert to text - use the raw bytes as text extraction
+        // The AI model can work with raw PDF text content
+        const arrayBuffer = await fileData.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        // Extract readable text from PDF bytes
+        const rawText = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        // Filter to printable ASCII and common unicode, clean up binary noise
+        content = rawText
+          .replace(/[^\x20-\x7E\n\r\t\u00A0-\u024F]/g, ' ')
+          .replace(/\s{3,}/g, '  ')
+          .trim();
+        console.log(`Extracted ${content.length} chars from PDF`);
+      } else {
+        content = await fileData.text();
+      }
+      
+      if (!content || content.length < 50) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Could not extract readable content from the file. Try uploading as CSV or text format.' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    console.log(`Analyzing report: ${reportId}, type: ${reportType}, content length: ${content.length}`);
 
     const systemPrompt = `You are a senior financial analyst specializing in US banking regulatory reports. 
 You analyze regulatory filings including Call Reports, UBPR, FRY-9C, Summary of Deposits, and SEC filings.
