@@ -269,8 +269,8 @@ export function ExecutiveSummary() {
                       {getCategoryLabel(insight.category)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                    {truncate(insight.summary)}
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {insight.summary}
                   </p>
                   <div className="flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground">
                     <span className="source-tag px-1.5 py-0.5 rounded">{insight.source}</span>
