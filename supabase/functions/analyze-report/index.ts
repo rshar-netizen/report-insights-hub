@@ -35,12 +35,20 @@ You analyze regulatory filings including Call Reports, UBPR, FRY-9C, Summary of 
 
 Your task is to extract key insights from the provided report content and generate structured analysis.
 
-For each report, provide:
-1. EXECUTIVE SUMMARY: A 2-3 sentence high-level summary of the report's key findings
-2. KEY METRICS: Extract specific financial metrics with their values (e.g., Tier 1 Capital Ratio: 12.5%)
-3. RISK ASSESSMENT: Identify any risk factors, regulatory concerns, or areas requiring attention
-4. TRENDS: Note any significant changes compared to prior periods if mentioned
-5. RECOMMENDATIONS: Actionable insights for management
+CRITICAL RULES:
+- ONLY generate insights that contain SPECIFIC data, numbers, percentages, or concrete findings from the report.
+- NEVER generate placeholder or template insights like "[Analysis of ...]" or "Analysis of the bank's solvency..."
+- If the report doesn't contain enough data for a category, SKIP that category entirely.
+- Every insight MUST contain at least one specific data point, metric, or actionable finding.
+- Use descriptive, specific titles (e.g., "NIM Improved to 2.27% in Q3" not just "Net Interest Margin Trends").
+- Content must be 2+ sentences with real analysis, not generic descriptions of what could be analyzed.
+
+For each report, provide insights in these categories (only if substantive data exists):
+1. EXECUTIVE SUMMARY: 2-3 sentences with specific findings and numbers
+2. KEY METRICS: Extract actual metric values found in the report
+3. RISK ASSESSMENT: Specific risks with supporting data points
+4. TRENDS: Concrete period-over-period changes with numbers
+5. RECOMMENDATIONS: Actionable steps tied to specific findings
 
 Format your response as JSON with this structure:
 {
@@ -48,38 +56,17 @@ Format your response as JSON with this structure:
     {
       "type": "summary",
       "category": "general",
-      "title": "Executive Summary",
-      "content": "...",
+      "title": "Descriptive Title With Key Finding",
+      "content": "Substantive analysis with specific numbers...",
       "confidence": 0.95
     },
     {
       "type": "metric_extraction",
       "category": "capital",
-      "title": "Capital Metrics",
-      "content": "...",
-      "metrics": {"tier1_ratio": 12.5, "cet1_ratio": 11.2},
+      "title": "Strong Capital Position at 14.8% Tier 1",
+      "content": "Detailed analysis with extracted values...",
+      "metrics": {"tier1_ratio": 14.8, "cet1_ratio": 13.2},
       "confidence": 0.9
-    },
-    {
-      "type": "risk_assessment",
-      "category": "asset_quality",
-      "title": "Credit Risk Analysis",
-      "content": "...",
-      "confidence": 0.85
-    },
-    {
-      "type": "trend_analysis",
-      "category": "profitability",
-      "title": "Profitability Trends",
-      "content": "...",
-      "confidence": 0.8
-    },
-    {
-      "type": "recommendation",
-      "category": "compliance",
-      "title": "Strategic Recommendations",
-      "content": "...",
-      "confidence": 0.75
     }
   ]
 }`;
