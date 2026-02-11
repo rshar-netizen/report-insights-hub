@@ -56,7 +56,7 @@ async function fetchFdicFinancials(rssdId: string, certNumber?: string): Promise
   if (!cert) {
     // Try lookup by RSSD through FDIC institutions API
     try {
-      const lookupUrl = `https://banks.data.fdic.gov/api/financials?filters=RSSDID:${rssdId}&fields=CERT,REPNM,ASSET,DEP,NETINC,EQ,ROA,ROE,NIMY,EEFFR,NCLNLSR,IDT1RWAJR,RBCRWAJ,REPDTE&sort_by=REPDTE&sort_order=DESC&limit=1&format=json`;
+      const lookupUrl = `https://banks.data.fdic.gov/api/financials?filters=RSSDID:${rssdId}&fields=CERT,REPNM,ASSET,DEP,NETINC,EQ,ROA,ROE,NIMY,EEFFR,NCLNLSR,IDT1RWAJR,RBCT1CER,RBCRWAJ,REPDTE&sort_by=REPDTE&sort_order=DESC&limit=1&format=json`;
       
       const response = await fetch(lookupUrl, {
         headers: { 'Accept': 'application/json' },
@@ -82,7 +82,7 @@ async function fetchFdicFinancials(rssdId: string, certNumber?: string): Promise
     return { metrics: {}, error: `No cert number found for RSSD ${rssdId}` };
   }
 
-  const url = `https://banks.data.fdic.gov/api/financials?filters=CERT:${cert}&fields=REPNM,ASSET,DEP,NETINC,EQ,ROA,ROE,NIMY,EEFFR,NCLNLSR,IDT1RWAJR,RBCRWAJ,REPDTE&sort_by=REPDTE&sort_order=DESC&limit=1&format=json`;
+  const url = `https://banks.data.fdic.gov/api/financials?filters=CERT:${cert}&fields=REPNM,ASSET,DEP,NETINC,EQ,ROA,ROE,NIMY,EEFFR,NCLNLSR,IDT1RWAJR,RBCT1CER,RBCRWAJ,REPDTE&sort_by=REPDTE&sort_order=DESC&limit=1&format=json`;
   
   console.log(`Fetching FDIC data for cert ${cert} (RSSD: ${rssdId})`);
   
@@ -126,7 +126,7 @@ function extractMetrics(r: Record<string, unknown>): PeerMetrics['metrics'] {
     efficiency: safeNumber(r.EEFFR),
     npl: safeNumber(r.NCLNLSR),
     tier1: safeNumber(r.IDT1RWAJR),
-    cet1: undefined, // FDIC doesn't directly expose CET1 in basic financials
+    cet1: safeNumber(r.RBCT1CER),
     lcr: undefined,  // LCR not in FDIC basic financials
     totalAssets: safeNumber(r.ASSET),
   };
