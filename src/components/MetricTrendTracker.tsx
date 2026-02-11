@@ -15,7 +15,8 @@ import {
   Tooltip, 
   ResponsiveContainer
 } from 'recharts';
-import { TrendingUp, TrendingDown, FileText, Calendar, AlertTriangle } from 'lucide-react';
+import { TrendingUp, TrendingDown, FileText, Calendar, AlertTriangle, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIngestedHistoricalData } from '@/hooks/useIngestedReportData';
 
 // Metric metadata (labels, descriptions) — no fake values
@@ -221,57 +222,62 @@ export function MetricTrendTracker({ className }: MetricTrendTrackerProps) {
         </div>
       </div>
 
-      {/* Quarterly Breakdown Table */}
-      <div className="glass-card rounded-lg overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <h3 className="text-sm font-semibold text-foreground">Quarterly Breakdown</h3>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-secondary/30">
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Value</th>
-                <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Change</th>
-                <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...data].reverse().map((row, idx, arr) => {
-                const prevRow = arr[idx + 1];
-                const rowChange = prevRow ? row.value - prevRow.value : 0;
-                const isRowChangeGood = isPositiveGood ? rowChange > 0 : rowChange < 0;
-
-                return (
-                  <tr key={row.period} className="border-t border-border/50 hover:bg-secondary/20 transition-colors">
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">{row.period}</td>
-                    <td className="px-4 py-3 text-sm text-right metric-value text-foreground">
-                      {row.value.toFixed(2)}%
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right">
-                      {prevRow ? (
-                        <span className={`flex items-center justify-end gap-1 ${isRowChangeGood ? 'text-success' : 'text-destructive'}`}>
-                          {rowChange > 0 ? '+' : ''}{rowChange.toFixed(2)}%
-                          {isRowChangeGood ? (
-                            <TrendingUp className="w-3 h-3" />
-                          ) : (
-                            <TrendingDown className="w-3 h-3" />
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {row.reportType}
-                    </td>
+      {/* Quarterly Breakdown Table — Collapsible */}
+      <Collapsible>
+        <div className="glass-card rounded-lg overflow-hidden">
+          <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-secondary/20 transition-colors cursor-pointer">
+            <h3 className="text-sm font-semibold text-foreground">Quarterly Breakdown</h3>
+            <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="border-t border-border overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-secondary/30">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Period</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Value</th>
+                    <th className="text-right px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Change</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {[...data].reverse().map((row, idx, arr) => {
+                    const prevRow = arr[idx + 1];
+                    const rowChange = prevRow ? row.value - prevRow.value : 0;
+                    const isRowChangeGood = isPositiveGood ? rowChange > 0 : rowChange < 0;
+
+                    return (
+                      <tr key={row.period} className="border-t border-border/50 hover:bg-secondary/20 transition-colors">
+                        <td className="px-4 py-3 text-sm font-medium text-foreground">{row.period}</td>
+                        <td className="px-4 py-3 text-sm text-right metric-value text-foreground">
+                          {row.value.toFixed(2)}%
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          {prevRow ? (
+                            <span className={`flex items-center justify-end gap-1 ${isRowChangeGood ? 'text-success' : 'text-destructive'}`}>
+                              {rowChange > 0 ? '+' : ''}{rowChange.toFixed(2)}%
+                              {isRowChangeGood ? (
+                                <TrendingUp className="w-3 h-3" />
+                              ) : (
+                                <TrendingDown className="w-3 h-3" />
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {row.reportType}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CollapsibleContent>
         </div>
-      </div>
+      </Collapsible>
     </div>
   );
 }
