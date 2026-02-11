@@ -20,7 +20,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { dataIngestionApi, IngestedReport, ApiConnection } from '@/lib/api/dataIngestion';
+import { dataIngestionApi, IngestedReport, ApiConnection, AnalyzeResult } from '@/lib/api/dataIngestion';
+import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const REPORT_TYPES = [
@@ -154,25 +155,75 @@ export function ReportUploader() {
   // Analyze report function
   const analyzeReport = useCallback(async (report: IngestedReport) => {
     try {
-      // For demo, we'll use a placeholder content - in production, you'd extract from the file
-      const content = report.raw_content || `Financial report: ${report.name}`;
+      // Delete old insights before re-analysis
+      const { error: deleteError } = await supabase
+        .from('report_insights')
+        .delete()
+        .eq('report_id', report.id);
       
-      const result = await dataIngestionApi.analyzeReport(
-        report.id,
-        content,
-        report.report_type,
-        report.institution_name,
-        report.reporting_period
-      );
+      if (deleteError) {
+        console.error('Failed to clear old insights:', deleteError);
+      }
+
+      // Update status to processing
+      await supabase
+        .from('ingested_reports')
+        .update({ status: 'processing' })
+        .eq('id', report.id);
+
+      queryClient.invalidateQueries({ queryKey: ['ingested-reports'] });
+
+      // Use raw_content if available, otherwise pass file_path for storage retrieval
+      const content = report.raw_content || '';
+      
+      const { data, error } = await supabase.functions.invoke('analyze-report', {
+        body: {
+          reportId: report.id,
+          content,
+          filePath: report.file_path,
+          reportType: report.report_type,
+          institutionName: report.institution_name,
+          reportingPeriod: report.reporting_period
+        }
+      });
+
+      if (error) {
+        console.error('Analysis error:', error);
+        await supabase
+          .from('ingested_reports')
+          .update({ status: 'error', error_message: error.message })
+          .eq('id', report.id);
+        toast({ title: 'Analysis failed', description: error.message, variant: 'destructive' });
+        queryClient.invalidateQueries({ queryKey: ['ingested-reports'] });
+        return;
+      }
+
+      const result = data as AnalyzeResult;
 
       if (result.success && result.insights.length > 0) {
         await dataIngestionApi.saveInsights(report.id, result.insights);
+        
+        // Update status to analyzed
+        await supabase
+          .from('ingested_reports')
+          .update({ status: 'analyzed' })
+          .eq('id', report.id);
+
         queryClient.invalidateQueries({ queryKey: ['ingested-reports'] });
+        queryClient.invalidateQueries({ queryKey: ['ingested-reports-with-insights'] });
         queryClient.invalidateQueries({ queryKey: ['report-insights'] });
         toast({ title: 'Analysis complete', description: `Generated ${result.insights.length} insights` });
+      } else {
+        await supabase
+          .from('ingested_reports')
+          .update({ status: 'error', error_message: result.error || 'No insights generated' })
+          .eq('id', report.id);
+        queryClient.invalidateQueries({ queryKey: ['ingested-reports'] });
+        toast({ title: 'Analysis issue', description: result.error || 'No insights were generated', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Analysis error:', error);
+      toast({ title: 'Analysis failed', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
     }
   }, [queryClient, toast]);
 
